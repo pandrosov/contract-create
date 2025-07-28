@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -9,6 +9,7 @@ import NotificationContainer from './components/NotificationContainer';
 // Pages
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import DashboardPage from './pages/DashboardPage';
 import FoldersPage from './pages/FoldersPage';
 import TemplatesPage from './pages/TemplatesPage';
 import GenerateDocumentPage from './pages/GenerateDocumentPage';
@@ -19,17 +20,24 @@ import LogsPage from './pages/LogsPage';
 // Styles
 import './styles/global.css';
 
-const ProtectedLayout = ({ children }) => (
-  <div className="app-layout">
-    <Sidebar />
-    <div className="main-content">
-      <Header />
-      <div className="content">
-        {children}
+const ProtectedLayout = ({ children }) => {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  return (
+    <div className="app-layout">
+      <Sidebar 
+        collapsed={sidebarCollapsed} 
+        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
+      <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        <Header />
+        <div className="content">
+          {children}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const App = () => {
   return (
@@ -40,7 +48,15 @@ const App = () => {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
-            <Route path="/" element={<Navigate to="/folders" replace />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <DashboardPage />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            } />
             
             <Route path="/folders" element={
               <ProtectedRoute>
