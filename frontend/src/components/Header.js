@@ -1,25 +1,42 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 
-export default function Header() {
+const Header = () => {
   const { user, logout } = useAuth();
 
-  const handleLogout = async () => {
-    await logout();
-    window.location.href = '/login';
+  const handleLogout = () => {
+    logout();
+    window.showNotification?.('Вы успешно вышли из системы', 'success');
   };
 
   return (
-    <header className="header-bar">
-      <div className="header-content">
-        <div className="header-title">Генератор договоров</div>
+    <header className="header">
+      <div className="header-left">
+        <h1 className="header-title">Contract Manager</h1>
+      </div>
+      
+      <div className="header-actions">
         {user && (
-          <div className="header-user">
-            <span className="header-username">{user.username || 'Пользователь'}</span>
-            <button className="header-logout-btn" onClick={handleLogout}>Выйти</button>
-          </div>
+          <>
+            <div className="user-menu">
+              <span className="user-greeting">Привет, {user.username}!</span>
+              <span className="user-role">
+                {user.is_admin ? 'Администратор' : 'Пользователь'}
+              </span>
+            </div>
+            
+            <button 
+              className="btn btn-secondary btn-sm"
+              onClick={handleLogout}
+            >
+              <span>🚪</span>
+              Выйти
+            </button>
+          </>
         )}
       </div>
     </header>
   );
-} 
+};
+
+export default Header; 

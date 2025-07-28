@@ -1,148 +1,291 @@
-import React, { useEffect, useState } from 'react';
-import { getFolders } from '../api/folders';
+import React, { useState, useEffect } from 'react';
 import { getTemplatesByFolder, uploadTemplate, deleteTemplate } from '../api/templates';
-import { useAuth } from '../context/AuthContext';
+import { getFolders } from '../api/folders';
+import FileUpload from '../components/FileUpload';
+import Modal from '../components/Modal';
+import LoadingSpinner from '../components/LoadingSpinner';
 
-export default function TemplatesPage() {
-  const { csrfToken } = useAuth();
-  const [folders, setFolders] = useState([]);
-  const [selectedFolder, setSelectedFolder] = useState(null);
+const TemplatesPage = () => {
   const [templates, setTemplates] = useState([]);
-  const [file, setFile] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [folders, setFolders] = useState([]);
+  const [selectedFolder, setSelectedFolder] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const data = await getFolders();
-        setFolders(Array.isArray(data) ? data : Array.isArray(data.folders) ? data.folders : []);
-        if ((Array.isArray(data) && data.length > 0)) setSelectedFolder(data[0].id);
-        else if (Array.isArray(data.folders) && data.folders.length > 0) setSelectedFolder(data.folders[0].id);
-      } catch {
-        setError('Ошибка загрузки папок');
-        setFolders([]);
-      }
-    })();
+    fetchFolders();
   }, []);
 
   useEffect(() => {
-    if (!selectedFolder) return;
-    setLoading(true);
-    setError('');
-    (async () => {
-      try {
-        const data = await getTemplatesByFolder(selectedFolder);
-        setTemplates(Array.isArray(data) ? data : Array.isArray(data.templates) ? data.templates : []);
-      } catch {
-        setError('Ошибка загрузки шаблонов');
-        setTemplates([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    if (selectedFolder) {
+      fetchTemplates();
+    }
   }, [selectedFolder]);
 
-  const handleUpload = async (e) => {
-    e.preventDefault();
-    if (!file || !selectedFolder) return;
-    setError('');
-    setSuccess('');
+  const fetchFolders = async () => {
+    try {
+      const foldersData = await getFolders();
+      setFolders(foldersData);
+      if (foldersData.length > 0) {
+        setSelectedFolder(foldersData[0].id);
+      }
+    } catch (error) {
+      console.error('Error fetching folders:', error);
+      window.showNotification?.('Ошибка при загрузке папок', 'error');
+    }
+  };
+
+  const fetchTemplates = async () => {
+    if (!selectedFolder) return;
+    
     setLoading(true);
     try {
-      await uploadTemplate(file, selectedFolder, csrfToken);
-      setSuccess('Шаблон загружен');
-      setFile(null);
-      const data = await getTemplatesByFolder(selectedFolder);
-      setTemplates(Array.isArray(data) ? data : Array.isArray(data.templates) ? data.templates : []);
-    } catch {
-      setError('Ошибка загрузки шаблона');
+      const templatesData = await getTemplatesByFolder(selectedFolder);
+      setTemplates(templatesData);
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+      window.showNotification?.('Ошибка при загрузке шаблонов', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Удалить шаблон?')) return;
-    setError('');
-    setSuccess('');
-    setLoading(true);
+  const handleFileSelect = (file) => {
+    setSelectedFile(file);
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile || !selectedFolder) return;
+
+    setUploading(true);
     try {
-      await deleteTemplate(id, csrfToken);
-      setSuccess('Шаблон удалён');
-      const data = await getTemplatesByFolder(selectedFolder);
-      setTemplates(Array.isArray(data) ? data : Array.isArray(data.templates) ? data.templates : []);
-    } catch {
-      setError('Ошибка удаления шаблона');
+      await uploadTemplate(selectedFile, selectedFolder);
+      window.showNotification?.('Шаблон успешно загружен!', 'success');
+      setShowUploadModal(false);
+      setSelectedFile(null);
+      fetchTemplates();
+    } catch (error) {
+      console.error('Error uploading template:', error);
+      window.showNotification?.('Ошибка при загрузке шаблона', 'error');
     } finally {
-      setLoading(false);
+      setUploading(false);
     }
   };
+
+  const handleDelete = async (templateId) => {
+    if (!window.confirm('Вы уверены, что хотите удалить этот шаблон?')) return;
+
+    try {
+      await deleteTemplate(templateId);
+      window.showNotification?.('Шаблон успешно удален!', 'success');
+      fetchTemplates();
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      window.showNotification?.('Ошибка при удалении шаблона', 'error');
+    }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('ru-RU', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="page-header">
+        <h1 className="page-title">Шаблоны</h1>
+        <LoadingSpinner text="Загрузка шаблонов..." />
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <h2>Управление шаблонами</h2>
-      {error && <div className="auth-error">{error}</div>}
-      {success && <div className="auth-success">{success}</div>}
-      
-      {/* Форма загрузки шаблона */}
-      <div style={{ margin: '18px 0', display: 'flex', gap: 10, alignItems: 'center' }}>
-        <select value={selectedFolder || ''} onChange={e => setSelectedFolder(Number(e.target.value))}>
-          {(folders || []).map(f => (
-            <option key={f.id} value={f.id}>{f.name} (id: {f.id})</option>
-          ))}
-        </select>
-        <form onSubmit={handleUpload} style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-          <input type="file" accept=".docx" onChange={e => setFile(e.target.files[0])} />
-          <button type="submit" disabled={!file || !selectedFolder || loading}>Загрузить шаблон</button>
-        </form>
+    <div className="templates-page">
+      <div className="page-header">
+        <h1 className="page-title">Шаблоны</h1>
+        <p className="page-subtitle">Управление шаблонами документов</p>
       </div>
 
-      {/* Список шаблонов */}
-      {loading ? (
-        <div>Загрузка...</div>
-      ) : (
-        <table style={{ width: '100%', marginTop: 18, borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: '#f7fafc' }}>
-              <th style={{ padding: 8, border: '1px solid #e0e7ef' }}>ID</th>
-              <th style={{ padding: 8, border: '1px solid #e0e7ef' }}>Имя файла</th>
-              <th style={{ padding: 8, border: '1px solid #e0e7ef' }}>Дата загрузки</th>
-              <th style={{ padding: 8, border: '1px solid #e0e7ef' }}>Действия</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(templates || []).map(t => (
-              <tr key={t.id}>
-                <td style={{ padding: 8, border: '1px solid #e0e7ef' }}>{t.id}</td>
-                <td style={{ padding: 8, border: '1px solid #e0e7ef' }}>{t.filename}</td>
-                <td style={{ padding: 8, border: '1px solid #e0e7ef' }}>
-                  {new Date(t.uploaded_at).toLocaleDateString()}
-                </td>
-                <td style={{ padding: 8, border: '1px solid #e0e7ef' }}>
-                  <button 
-                    onClick={() => handleDelete(t.id)} 
-                    style={{ 
-                      color: '#e53935', 
-                      border: 'none', 
-                      background: 'none', 
-                      cursor: 'pointer' 
-                    }}
-                  >
-                    Удалить
-                  </button>
-                </td>
-              </tr>
+      <div className="card">
+        <div className="card-header">
+          <h2 className="card-title">Загрузка шаблона</h2>
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowUploadModal(true)}
+          >
+            <span>📄</span>
+            Загрузить шаблон
+          </button>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="folder-select" className="form-label">
+            Выберите папку
+          </label>
+          <select
+            id="folder-select"
+            className="form-select"
+            value={selectedFolder}
+            onChange={(e) => setSelectedFolder(e.target.value)}
+          >
+            {folders.map(folder => (
+              <option key={folder.id} value={folder.id}>
+                {folder.name}
+              </option>
             ))}
-          </tbody>
-        </table>
-      )}
-      
-      <div style={{ marginTop: 20, padding: 16, background: '#f0f8ff', borderRadius: 8, border: '1px solid #b3d9ff' }}>
-        <h4>💡 Подсказка</h4>
-        <p>Для создания документов из шаблонов перейдите в раздел <strong>"Создать документ"</strong> в боковом меню.</p>
+          </select>
+        </div>
       </div>
+
+      <div className="card">
+        <div className="card-header">
+          <h2 className="card-title">Список шаблонов</h2>
+          <span className="card-subtitle">
+            {templates.length} шаблонов в папке
+          </span>
+        </div>
+
+        {templates.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">📄</div>
+            <h3 className="empty-state-title">Нет шаблонов</h3>
+            <p className="empty-state-description">
+              В этой папке пока нет шаблонов. Загрузите первый шаблон, чтобы начать работу.
+            </p>
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowUploadModal(true)}
+            >
+              <span>📄</span>
+              Загрузить шаблон
+            </button>
+          </div>
+        ) : (
+          <div className="table-container">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Название</th>
+                  <th>Папка</th>
+                  <th>Загружен</th>
+                  <th>Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                {templates.map(template => (
+                  <tr key={template.id}>
+                    <td>
+                      <div className="template-info">
+                        <span className="template-name">{template.filename}</span>
+                      </div>
+                    </td>
+                    <td>
+                      {folders.find(f => f.id === template.folder_id)?.name || 'Неизвестная папка'}
+                    </td>
+                    <td>{formatDate(template.uploaded_at)}</td>
+                    <td>
+                      <div className="table-actions">
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => window.open(`/api/templates/${template.id}/download`, '_blank')}
+                        >
+                          <span>⬇️</span>
+                          Скачать
+                        </button>
+                        <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDelete(template.id)}
+                        >
+                          <span>🗑️</span>
+                          Удалить
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <h2 className="card-title">Информация</h2>
+        </div>
+        <div className="info-content">
+          <p>
+            <strong>📝 Как использовать шаблоны:</strong>
+          </p>
+          <ul>
+            <li>Загрузите .docx файл с плейсхолдерами в формате <code>{'{{FIELD_NAME}}'}</code></li>
+            <li>Система автоматически извлечет поля из шаблона</li>
+            <li>Перейдите на страницу "Создать документ" для генерации</li>
+            <li>Заполните поля и скачайте готовый документ</li>
+          </ul>
+        </div>
+      </div>
+
+      <Modal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        title="Загрузка шаблона"
+        size="large"
+      >
+        <div className="upload-modal-content">
+          <div className="form-group">
+            <label className="form-label">Выберите файл шаблона</label>
+            <FileUpload
+              onFileSelect={handleFileSelect}
+              accept=".docx"
+              maxSize={10}
+            />
+          </div>
+
+          {selectedFile && (
+            <div className="selected-file">
+              <p><strong>Выбранный файл:</strong> {selectedFile.name}</p>
+              <p><strong>Размер:</strong> {(selectedFile.size / 1024 / 1024).toFixed(2)} МБ</p>
+            </div>
+          )}
+
+          <div className="modal-actions">
+            <button
+              className="btn btn-secondary"
+              onClick={() => setShowUploadModal(false)}
+              disabled={uploading}
+            >
+              Отмена
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={handleUpload}
+              disabled={!selectedFile || uploading}
+            >
+              {uploading ? (
+                <>
+                  <div className="spinner spinner-sm"></div>
+                  Загрузка...
+                </>
+              ) : (
+                <>
+                  <span>📤</span>
+                  Загрузить
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
-} 
+};
+
+export default TemplatesPage; 

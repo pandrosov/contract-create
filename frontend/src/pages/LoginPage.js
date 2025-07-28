@@ -1,53 +1,124 @@
 import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
 
-export default function LoginPage() {
-  const { login } = useAuth();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+const LoginPage = () => {
+  const [formData, setFormData] = useState({
+    username: '',
+    password: ''
+  });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  const { login } = useAuth();
   const navigate = useNavigate();
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
+    setError('');
+
     try {
-      await login(username, password);
-      navigate('/');
+      await login(formData.username, formData.password);
+      window.showNotification?.('Успешный вход в систему!', 'success');
+      navigate('/folders');
     } catch (err) {
-      setError('Неверный логин или пароль, либо пользователь не активирован');
+      setError(err.message || 'Ошибка входа');
+      window.showNotification?.(err.message || 'Ошибка входа', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-container">
-      <h2>Вход</h2>
-      <form onSubmit={handleSubmit} className="auth-form">
-        <input
-          type="text"
-          placeholder="Имя пользователя"
-          value={username}
-          onChange={e => setUsername(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Пароль"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit" disabled={loading}>{loading ? 'Вход...' : 'Войти'}</button>
-        {error && <div className="auth-error">{error}</div>}
-      </form>
-      <div style={{ marginTop: 16 }}>
-        Нет аккаунта? <a href="/register">Зарегистрироваться</a>
+    <div className="login-page">
+      <div className="login-container">
+        <div className="login-card">
+          <div className="login-header">
+            <h1 className="login-title">Contract Manager</h1>
+            <p className="login-subtitle">Войдите в систему управления договорами</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="login-form">
+            <div className="form-group">
+              <label htmlFor="username" className="form-label">
+                Имя пользователя
+              </label>
+              <input
+                type="text"
+                id="username"
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                className="form-input"
+                placeholder="Введите имя пользователя"
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="password" className="form-label">
+                Пароль
+              </label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className="form-input"
+                placeholder="Введите пароль"
+                required
+                disabled={loading}
+              />
+            </div>
+
+            {error && (
+              <div className="alert alert-error">
+                <span>⚠</span>
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="btn btn-primary btn-lg w-full"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <div className="spinner spinner-sm"></div>
+                  Вход...
+                </>
+              ) : (
+                <>
+                  <span>🔐</span>
+                  Войти
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="login-footer">
+            <p className="login-footer-text">
+              Нет аккаунта?{' '}
+              <Link to="/register" className="login-footer-link">
+                Зарегистрироваться
+              </Link>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
-} 
+};
+
+export default LoginPage; 

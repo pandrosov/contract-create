@@ -2,21 +2,74 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-export default function Sidebar() {
+const Sidebar = () => {
   const { user } = useAuth();
-  if (!user) return null;
-  const isAdmin = user.is_admin || false;
+
+  const navItems = [
+    {
+      path: '/folders',
+      label: 'Папки',
+      icon: '📁'
+    },
+    {
+      path: '/templates',
+      label: 'Шаблоны',
+      icon: '📄'
+    },
+    {
+      path: '/generate',
+      label: 'Создать документ',
+      icon: '✏️'
+    },
+    {
+      path: '/users',
+      label: 'Пользователи',
+      icon: '👥'
+    },
+    {
+      path: '/permissions',
+      label: 'Права доступа',
+      icon: '🔐'
+    },
+    {
+      path: '/logs',
+      label: 'Логи',
+      icon: '📊'
+    }
+  ];
+
   return (
-    <aside className="sidebar">
+    <div className="sidebar">
+      <div className="sidebar-header">
+        <div className="sidebar-title">Contract Manager</div>
+        <div className="sidebar-subtitle">Система управления договорами</div>
+      </div>
+      
       <nav className="sidebar-nav">
-        <NavLink to="/" end className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>Главная</NavLink>
-        {isAdmin && <NavLink to="/users" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>Пользователи</NavLink>}
-        <NavLink to="/folders" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>Папки</NavLink>
-        <NavLink to="/templates" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>Шаблоны</NavLink>
-        <NavLink to="/generate" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>Создать документ</NavLink>
-        {isAdmin && <NavLink to="/permissions" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>Права</NavLink>}
-        {isAdmin && <NavLink to="/logs" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>Логи</NavLink>}
+        {navItems.map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+          >
+            <span className="nav-icon">{item.icon}</span>
+            {item.label}
+          </NavLink>
+        ))}
       </nav>
-    </aside>
+      
+      {user && (
+        <div className="sidebar-footer">
+          <div className="user-info">
+            <div className="user-name">{user.username}</div>
+            <div className="user-role">
+              {user.is_admin ? 'Администратор' : 'Пользователь'}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
-} 
+};
+
+export default Sidebar; 
