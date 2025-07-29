@@ -22,7 +22,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: app/Dockerfile
     container_name: contract-backend
     environment:
       - DATABASE_URL=postgresql://contract_user:${POSTGRES_PASSWORD:-secure_password_123}@postgres:5432/contract_db
