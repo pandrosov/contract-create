@@ -37,6 +37,7 @@ async def health_check():
 async def custom_docs():
     """Custom documentation endpoint"""
     from fastapi.responses import HTMLResponse
+    from fastapi import Response
     
     html_content = """
     <!DOCTYPE html>
@@ -74,7 +75,14 @@ async def custom_docs():
     </body>
     </html>
     """
-    return HTMLResponse(content=html_content)
+    return HTMLResponse(
+        content=html_content,
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+    )
 
 app.include_router(auth.router, tags=["auth"])
 app.include_router(folders.router, tags=["folders"])
