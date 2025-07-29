@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Server Configuration Check Script
-# Usage: ./check_server.sh
+# Usage: ./check_server.sh [--ssh-agent] [--key-path /path/to/key]
 
 set -e
 
@@ -15,15 +15,73 @@ NC='\033[0m'
 # Configuration
 SERVER_IP="178.172.138.229"
 REMOTE_USER="root"
+SSH_OPTIONS=""
+USE_SSH_AGENT=false
+SSH_KEY_PATH=""
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --ssh-agent)
+            USE_SSH_AGENT=true
+            shift
+            ;;
+        --key-path)
+            SSH_KEY_PATH="$2"
+            shift 2
+            ;;
+        --help)
+            echo "Usage: $0 [OPTIONS]"
+            echo "Options:"
+            echo "  --ssh-agent     Use SSH agent for key management"
+            echo "  --key-path PATH Specify custom SSH key path"
+            echo "  --help          Show this help message"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
 
 echo -e "${GREEN}🔍 Checking server configuration...${NC}"
 echo -e "${BLUE}Server: $SERVER_IP${NC}"
 echo -e "${BLUE}User: $REMOTE_USER${NC}"
+echo -e "${BLUE}SSH Agent: $USE_SSH_AGENT${NC}"
+if [ -n "$SSH_KEY_PATH" ]; then
+    echo -e "${BLUE}SSH Key: $SSH_KEY_PATH${NC}"
+fi
 echo ""
+
+# Setup SSH options
+if [ "$USE_SSH_AGENT" = true ]; then
+    echo -e "${BLUE}🔑 Using SSH agent...${NC}"
+    # Check if ssh-agent is running
+    if ! ssh-add -l >/dev/null 2>&1; then
+        echo -e "${YELLOW}⚠️  SSH agent is not running. Starting it...${NC}"
+        eval $(ssh-agent -s)
+        echo -e "${GREEN}✅ SSH agent started${NC}"
+    fi
+    
+    # Add default key to agent
+    if [ -f ~/.ssh/id_rsa ]; then
+        ssh-add ~/.ssh/id_rsa 2>/dev/null || echo -e "${YELLOW}⚠️  Could not add default key to agent${NC}"
+    fi
+    
+    SSH_OPTIONS="-o StrictHostKeyChecking=no"
+elif [ -n "$SSH_KEY_PATH" ]; then
+    echo -e "${BLUE}🔑 Using custom SSH key: $SSH_KEY_PATH${NC}"
+    SSH_OPTIONS="-o StrictHostKeyChecking=no -i $SSH_KEY_PATH"
+else
+    echo -e "${BLUE}🔑 Using default SSH configuration${NC}"
+    SSH_OPTIONS="-o StrictHostKeyChecking=no"
+fi
 
 # Function to execute remote command
 remote_exec() {
-    ssh -o StrictHostKeyChecking=no $REMOTE_USER@$SERVER_IP "$1"
+    ssh $SSH_OPTIONS $REMOTE_USER@$SERVER_IP "$1"
 }
 
 # Function to check command result
@@ -34,6 +92,20 @@ check_result() {
         echo -e "${RED}❌ $1${NC}"
     fi
 }
+
+# Test SSH connection first
+echo -e "${GREEN}📋 Step 0: Testing SSH connection...${NC}"
+if remote_exec "echo 'SSH connection test successful'" >/dev/null 2>&1; then
+    echo -e "${GREEN}✅ SSH connection established${NC}"
+else
+    echo -e "${RED}❌ SSH connection failed${NC}"
+    echo -e "${YELLOW}💡 Tips:${NC}"
+    echo "1. Make sure your SSH key is added to the server"
+    echo "2. Try: ssh-copy-id root@$SERVER_IP"
+    echo "3. Or use: $0 --ssh-agent"
+    echo "4. Or use: $0 --key-path /path/to/your/key"
+    exit 1
+fi
 
 echo -e "${GREEN}📋 Step 1: Basic system information...${NC}"
 
@@ -166,6 +238,10 @@ echo -e "${GREEN}📋 Step 12: Summary...${NC}"
 echo -e "${YELLOW}📊 Server Configuration Summary:${NC}"
 echo "Server IP: $SERVER_IP"
 echo "User: $REMOTE_USER"
+echo "SSH Agent: $USE_SSH_AGENT"
+if [ -n "$SSH_KEY_PATH" ]; then
+    echo "SSH Key: $SSH_KEY_PATH"
+fi
 echo ""
 
 echo -e "${YELLOW}🔧 Recommendations:${NC}"
