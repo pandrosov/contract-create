@@ -64,11 +64,12 @@ export async function getTemplateFields(templateId) {
   }
 }
 
-export async function generateDocument(templateId, values) {
+export async function generateDocument(templateId, values, outputFormat = 'docx') {
   try {
     const csrfToken = await getCSRFToken();
     const formData = new FormData();
     formData.append('values', JSON.stringify(values));
+    formData.append('output_format', outputFormat);
 
     const res = await axios.post(`${API_URL}/templates/${templateId}/generate`, formData, {
       withCredentials: true,

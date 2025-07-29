@@ -11,6 +11,7 @@ export default function GenerateDocumentPage() {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [templateFields, setTemplateFields] = useState([]);
   const [fieldValues, setFieldValues] = useState({});
+  const [outputFormat, setOutputFormat] = useState('docx');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -73,13 +74,15 @@ export default function GenerateDocumentPage() {
     setSuccess('');
     setLoading(true);
     try {
-      const blob = await generateDocument(selectedTemplate.id, fieldValues);
+      const blob = await generateDocument(selectedTemplate.id, fieldValues, outputFormat);
       
       // Создаем ссылку для скачивания
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `generated_${selectedTemplate.filename}`;
+      const baseName = selectedTemplate.filename.replace('.docx', '');
+      const extension = outputFormat === 'pdf' ? '.pdf' : '.docx';
+      a.download = `generated_${baseName}${extension}`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -190,6 +193,26 @@ export default function GenerateDocumentPage() {
                     />
                   </div>
                 ))}
+                
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', marginBottom: 8, fontWeight: 'bold' }}>
+                    Формат документа:
+                  </label>
+                  <select 
+                    value={outputFormat} 
+                    onChange={e => setOutputFormat(e.target.value)}
+                    style={{ 
+                      width: '100%', 
+                      padding: 8, 
+                      border: '1px solid #d1d5db', 
+                      borderRadius: 4,
+                      marginBottom: 16
+                    }}
+                  >
+                    <option value="docx">DOCX (Word)</option>
+                    <option value="pdf">PDF</option>
+                  </select>
+                </div>
                 
                 <button 
                   type="submit" 

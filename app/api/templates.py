@@ -68,6 +68,7 @@ def get_template_fields(template_id: int, db: Session = Depends(get_db), user=De
 def generate_document_route(
     template_id: int,
     values: str = Form(...),  # JSON строка с значениями
+    output_format: str = Form("docx"),  # Формат выходного файла: docx или pdf
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
     request: Request = None
@@ -80,8 +81,12 @@ def generate_document_route(
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Неверный формат JSON")
     
+    # Проверяем формат
+    if output_format.lower() not in ["docx", "pdf"]:
+        raise HTTPException(status_code=400, detail="Поддерживаются только форматы docx и pdf")
+    
     try:
-        doc_bytes = generate_document_from_template(template_id, values_dict, db)
+        doc_bytes = generate_document_from_template(template_id, values_dict, db, output_format)
         
         # Получаем информацию о шаблону для имени файла
         from app.services.template_service import get_template_by_id
@@ -90,10 +95,18 @@ def generate_document_route(
             raise HTTPException(status_code=404, detail="Шаблон не найден")
         
         original_name = template.filename
-        generated_name = f"generated_{original_name}"
+        base_name = original_name.replace('.docx', '')
+        extension = '.pdf' if output_format.lower() == 'pdf' else '.docx'
+        generated_name = f"generated_{base_name}{extension}"
         
-        safe_ascii = generated_name.encode('ascii', 'ignore').decode('ascii') or 'contract.docx'
+        safe_ascii = generated_name.encode('ascii', 'ignore').decode('ascii') or f'contract{extension}'
         safe_utf8 = quote(generated_name)
+        
+        # Определяем MIME тип
+        if output_format.lower() == 'pdf':
+            media_type = "application/pdf"
+        else:
+            media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         
         headers = {
             "Content-Disposition": f"attachment; filename={safe_ascii}; filename*=UTF-8''{safe_utf8}"
@@ -101,7 +114,7 @@ def generate_document_route(
         
         return StreamingResponse(
             io.BytesIO(doc_bytes),
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            media_type=media_type,
             headers=headers
         )
     except Exception as e:
