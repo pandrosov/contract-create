@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getCSRFToken } from './auth';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 export async function getTemplatesByFolder(folderId) {
   try {

@@ -4,12 +4,22 @@ from app.api import auth, folders, templates, users, permissions, logs
 from app.core.db import Base, engine
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Contract Management API")
+app = FastAPI(
+    title="Contract Management API",
+    description="API для системы управления договорами",
+    version="1.0.0",
+    openapi_version="3.0.2"
+)
 
 # Настройка CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Разрешаем запросы с фронтенда
+    allow_origins=[
+        "http://localhost:3000",  # Разработка
+        "https://contract.alnilam.by",  # Продакшен
+        "https://www.contract.alnilam.by",  # Продакшен с www
+        "https://178.172.138.229",  # IP адрес
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
