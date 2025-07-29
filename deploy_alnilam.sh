@@ -163,7 +163,8 @@ echo -e "${GREEN}📦 Step 3: Cloning repository...${NC}"
 
 # Clone repository directly into the target directory
 echo "Cloning repository directly into target directory..."
-remote_exec "cd $REMOTE_PATH && git clone -b master $REPO_URL ."
+remote_exec "cd $REMOTE_PATH"
+remote_exec "git clone -b master $REPO_URL ."
 
 echo "Verifying files were cloned correctly..."
 remote_exec "ls -la"
