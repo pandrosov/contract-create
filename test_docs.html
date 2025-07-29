@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test OpenAPI Documentation</title>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui.css" />
+    <style>
+        html { box-sizing: border-box; overflow: -moz-scrollbars-vertical; overflow-y: scroll; }
+        *, *:before, *:after { box-sizing: inherit; }
+        body { margin:0; background: #fafafa; }
+    </style>
+</head>
+<body>
+    <div id="swagger-ui"></div>
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui-bundle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui-standalone-preset.js"></script>
+    <script>
+        window.onload = function() {
+            console.log('Loading Swagger UI...');
+            
+            // Сначала проверим, что JSON доступен
+            fetch('https://contract.alnilam.by/api/openapi.json')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('OpenAPI JSON loaded:', data.openapi);
+                    
+                    const ui = SwaggerUIBundle({
+                        url: 'https://contract.alnilam.by/api/openapi.json',
+                        dom_id: '#swagger-ui',
+                        deepLinking: true,
+                        presets: [
+                            SwaggerUIBundle.presets.apis,
+                            SwaggerUIStandalonePreset
+                        ],
+                        plugins: [
+                            SwaggerUIBundle.plugins.DownloadUrl
+                        ],
+                        layout: "BaseLayout"
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading OpenAPI JSON:', error);
+                    document.getElementById('swagger-ui').innerHTML = 
+                        '<h2>Error loading OpenAPI documentation</h2><p>' + error.message + '</p>';
+                });
+        };
+    </script>
+</body>
+</html> 

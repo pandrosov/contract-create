@@ -58,7 +58,7 @@ async def custom_docs():
         <script>
             window.onload = function() {
                 const ui = SwaggerUIBundle({
-                    url: '/openapi.json',
+                    url: window.location.origin + '/api/openapi.json',
                     dom_id: '#swagger-ui',
                     deepLinking: true,
                     presets: [
