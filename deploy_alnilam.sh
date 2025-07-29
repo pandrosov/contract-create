@@ -161,19 +161,11 @@ echo -e "${GREEN}✅ Step 2 completed${NC}"
 
 echo -e "${GREEN}📦 Step 3: Cloning repository...${NC}"
 
-# Clone repository into a temporary directory and then move files
-echo "Cloning repository to temporary location..."
-remote_exec "cd /opt && git clone -b master $REPO_URL contract-manager-temp"
+# Clone repository directly into the target directory
+echo "Cloning repository directly into target directory..."
+remote_exec "cd $REMOTE_PATH && git clone -b master $REPO_URL ."
 
-echo "Moving files to final location..."
-remote_exec "cp -r /opt/contract-manager-temp/* $REMOTE_PATH/"
-remote_exec "cp -r /opt/contract-manager-temp/.* $REMOTE_PATH/ 2>/dev/null || true"
-remote_exec "rm -rf /opt/contract-manager-temp"
-
-echo "Switching to project directory..."
-remote_exec "cd $REMOTE_PATH"
-
-echo "Verifying files were copied correctly..."
+echo "Verifying files were cloned correctly..."
 remote_exec "ls -la"
 
 echo -e "${GREEN}✅ Step 3 completed${NC}"
