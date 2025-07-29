@@ -1,12 +1,16 @@
 import axios from 'axios';
 import { getCSRFToken } from './auth';
 
-const API_URL = process.env.REACT_APP_API_URL || '/api';
+// Определяем API_URL в зависимости от окружения
+const API_URL = process.env.REACT_APP_API_URL || 
+  (process.env.NODE_ENV === 'development' ? 'http://localhost:8000' : '/api');
 
 export async function getFolders() {
   try {
-    const res = await axios.get(`${API_URL}/folders/`, { withCredentials: true });
-    return res.data || [];
+    const res = await axios.get(`${API_URL}/folders/`, {
+      withCredentials: true
+    });
+    return res.data;
   } catch (error) {
     console.error('Error fetching folders:', error);
     throw error;

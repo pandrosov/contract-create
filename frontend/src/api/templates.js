@@ -1,7 +1,9 @@
 import axios from 'axios';
 import { getCSRFToken } from './auth';
 
-const API_URL = process.env.REACT_APP_API_URL || '/api';
+// Определяем API_URL в зависимости от окружения
+const API_URL = process.env.REACT_APP_API_URL || 
+  (process.env.NODE_ENV === 'development' ? 'http://localhost:8000' : '/api');
 
 export async function getTemplatesByFolder(folderId) {
   try {
@@ -21,10 +23,10 @@ export async function uploadTemplate(file, folder_id) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('folder_id', folder_id);
-    
+
     const res = await axios.post(`${API_URL}/templates/`, formData, {
       withCredentials: true,
-      headers: { 
+      headers: {
         'X-CSRF-Token': csrfToken,
         'Content-Type': 'multipart/form-data'
       }
@@ -43,7 +45,7 @@ export async function deleteTemplate(templateId) {
       withCredentials: true,
       headers: { 'X-CSRF-Token': csrfToken }
     });
-    return res.data;
+    return res.data; // Assuming backend returns a success message
   } catch (error) {
     console.error('Error deleting template:', error);
     throw error;
@@ -52,10 +54,10 @@ export async function deleteTemplate(templateId) {
 
 export async function getTemplateFields(templateId) {
   try {
-    const res = await axios.get(`${API_URL}/templates/${templateId}/fields`, {
+    const res = await axios.get(`${API_URL}/templates/${templateId}/fields`, { // No CSRF for GET
       withCredentials: true
     });
-    return res.data.fields;
+    return res.data.fields || [];
   } catch (error) {
     console.error('Error fetching template fields:', error);
     throw error;
@@ -67,26 +69,15 @@ export async function generateDocument(templateId, values) {
     const csrfToken = await getCSRFToken();
     const formData = new FormData();
     formData.append('values', JSON.stringify(values));
-    
+
     const res = await axios.post(`${API_URL}/templates/${templateId}/generate`, formData, {
       withCredentials: true,
-      headers: { 
+      headers: {
         'X-CSRF-Token': csrfToken,
         'Content-Type': 'multipart/form-data'
       },
       responseType: 'blob'
     });
-    
-    // Создаём ссылку для скачивания
-    const url = window.URL.createObjectURL(new Blob([res.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `generated_document.docx`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-    
     return res.data;
   } catch (error) {
     console.error('Error generating document:', error);
