@@ -8,7 +8,10 @@ app = FastAPI(
     title="Contract Management API",
     description="API для системы управления договорами",
     version="1.0.0",
-    openapi_version="3.1.0"
+    openapi_version="3.1.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
 )
 
 # Настройка CORS
