@@ -4,6 +4,8 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# Импортируем все модели для правильной инициализации
+from app.models import user, folder, template
 from app.core.security import get_password_hash
 from app.models.user import User
 from app.core.db import SessionLocal
