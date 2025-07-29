@@ -15,6 +15,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for deployment scripts"""
+    return {"status": "healthy", "service": "contract-management-api"}
+
 app.include_router(auth.router, tags=["auth"])
 app.include_router(folders.router, tags=["folders"])
 app.include_router(templates.router, tags=["templates"])
