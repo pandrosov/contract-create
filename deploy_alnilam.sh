@@ -147,17 +147,29 @@ if remote_exec "[ -d $REMOTE_PATH ]"; then
     echo -e "${BLUE}Backing up existing directory...${NC}"
     remote_exec "mv $REMOTE_PATH ${REMOTE_PATH}_backup_$(date +%Y%m%d_%H%M%S)"
     echo -e "${GREEN}✅ Existing directory backed up${NC}"
+    
+    # Ensure the directory is completely removed
+    echo "Ensuring directory is completely removed..."
+    remote_exec "rm -rf $REMOTE_PATH"
 fi
 
 # Create fresh project directory
+echo "Creating fresh project directory..."
 remote_exec "mkdir -p $REMOTE_PATH"
 remote_exec "cd $REMOTE_PATH"
+
+# Verify directory is empty
+echo "Verifying directory is empty..."
+if remote_exec "[ \"\$(ls -A $REMOTE_PATH)\" ]"; then
+    echo -e "${RED}❌ Directory is not empty, cleaning up...${NC}"
+    remote_exec "rm -rf $REMOTE_PATH/*"
+fi
 
 echo -e "${GREEN}✅ Step 2 completed${NC}"
 
 echo -e "${GREEN}📦 Step 3: Cloning repository...${NC}"
 
-# Clone repository
+# Clone repository into the fresh directory
 remote_exec "git clone -b master $REPO_URL ."
 
 echo -e "${GREEN}✅ Step 3 completed${NC}"
