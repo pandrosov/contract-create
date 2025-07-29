@@ -135,77 +135,76 @@ remote_exec "free -h"
 
 echo -e "${GREEN}✅ Step 1 completed${NC}"
 
-echo -e "${GREEN}📁 Step 2: Setting up project directory...${NC}"
+echo -e "${GREEN}📁 Step 2: Preparing project directory...${NC}"
 
-# Check if directory exists and handle it
-echo "Checking project directory..."
+# Create backup of existing directory if it exists
 if remote_exec "[ -d $REMOTE_PATH ]"; then
     echo -e "${YELLOW}⚠️  Directory $REMOTE_PATH already exists${NC}"
     echo "Checking contents..."
     remote_exec "ls -la $REMOTE_PATH"
     
-    echo -e "${BLUE}Backing up existing directory...${NC}"
-    remote_exec "mv $REMOTE_PATH ${REMOTE_PATH}_backup_$(date +%Y%m%d_%H%M%S)"
-    echo -e "${GREEN}✅ Existing directory backed up${NC}"
-    
-    # Ensure the directory is completely removed
-    echo "Ensuring directory is completely removed..."
-    remote_exec "rm -rf $REMOTE_PATH"
+    echo -e "${BLUE}Creating backup...${NC}"
+    BACKUP_NAME="${REMOTE_PATH}_backup_$(date +%Y%m%d_%H%M%S)"
+    remote_exec "mv $REMOTE_PATH $BACKUP_NAME"
+    echo -e "${GREEN}✅ Existing directory backed up to $BACKUP_NAME${NC}"
 fi
 
-# Create fresh project directory
+# Create fresh directory
 echo "Creating fresh project directory..."
 remote_exec "mkdir -p $REMOTE_PATH"
+remote_exec "cd $REMOTE_PATH"
 
 echo -e "${GREEN}✅ Step 2 completed${NC}"
 
 echo -e "${GREEN}📦 Step 3: Cloning repository...${NC}"
 
-# Clone repository directly into the target directory
-echo "Cloning repository directly into target directory..."
-remote_exec "cd $REMOTE_PATH"
-remote_exec "git clone -b master $REPO_URL ."
+# Clone repository into the target directory
+echo "Cloning repository..."
+remote_exec "cd $REMOTE_PATH && git clone -b master $REPO_URL ."
 
 echo "Verifying files were cloned correctly..."
-remote_exec "ls -la"
+remote_exec "cd $REMOTE_PATH && ls -la"
 
 echo -e "${GREEN}✅ Step 3 completed${NC}"
 
 echo -e "${GREEN}🔧 Step 4: Configuring environment...${NC}"
 
-# Create .env file
-remote_exec "cp env.example .env"
+# Generate secure passwords (using simpler characters)
+DB_PASSWORD=$(openssl rand -hex 16)
+SECRET_KEY=$(openssl rand -hex 32)
 
-# Generate secure passwords
-DB_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
-SECRET_KEY=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-50)
-
-# Update .env file
-remote_exec "sed -i 's/your_secure_database_password_here/$DB_PASSWORD/g' .env"
-remote_exec "sed -i 's/your-super-secret-key-change-this-in-production/$SECRET_KEY/g' .env"
-remote_exec "sed -i 's/your-domain.com/$DOMAIN/g' .env"
-remote_exec "sed -i 's|http://localhost:3000,https://your-domain.com|https://$DOMAIN,https://$WWW_DOMAIN|g' .env"
-remote_exec "sed -i 's|https://your-domain.com/api|https://$DOMAIN/api|g' .env"
+# Create .env file with proper substitutions
+echo "Creating .env file with generated passwords..."
+remote_exec "cd $REMOTE_PATH && cp env.example .env"
+remote_exec "cd $REMOTE_PATH && sed -i 's/your_secure_database_password_here/$DB_PASSWORD/g' .env"
+remote_exec "cd $REMOTE_PATH && sed -i 's/your-super-secret-key-change-this-in-production/$SECRET_KEY/g' .env"
+remote_exec "cd $REMOTE_PATH && sed -i 's/your-domain.com/$DOMAIN/g' .env"
+remote_exec "cd $REMOTE_PATH && sed -i 's|http://localhost:3000,https://your-domain.com|https://$DOMAIN,https://$WWW_DOMAIN|g' .env"
+remote_exec "cd $REMOTE_PATH && sed -i 's|https://your-domain.com/api|https://$DOMAIN/api|g' .env"
 
 echo -e "${GREEN}✅ Step 4 completed${NC}"
 
 echo -e "${GREEN}🔒 Step 5: Setting up SSL certificates...${NC}"
 
 # Create SSL directory
-remote_exec "mkdir -p nginx/ssl"
+echo "Creating SSL directory..."
+remote_exec "cd $REMOTE_PATH && mkdir -p nginx/ssl"
 
 # Generate self-signed certificate
-remote_exec "openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout nginx/ssl/key.pem -out nginx/ssl/cert.pem -subj \"/C=BY/ST=Minsk/L=Minsk/O=Alnilam/CN=$DOMAIN\""
+echo "Generating self-signed SSL certificate..."
+remote_exec "cd $REMOTE_PATH && openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout nginx/ssl/key.pem -out nginx/ssl/cert.pem -subj \"/C=BY/ST=Minsk/L=Minsk/O=Alnilam/CN=$DOMAIN\""
 
 echo -e "${GREEN}✅ Step 5 completed${NC}"
 
 echo -e "${GREEN}🚀 Step 6: Starting deployment...${NC}"
 
 # Make deploy script executable
-remote_exec "chmod +x deploy.sh"
+echo "Making deploy script executable..."
+remote_exec "cd $REMOTE_PATH && chmod +x deploy.sh"
 
 # Run deployment
-remote_exec "./deploy.sh production"
+echo "Running deployment..."
+remote_exec "cd $REMOTE_PATH && ./deploy.sh production"
 
 echo -e "${GREEN}✅ Step 6 completed${NC}"
 
@@ -217,7 +216,7 @@ sleep 30
 
 # Check if services are running
 echo "Checking service status..."
-remote_exec "docker-compose -f docker-compose.prod.yaml ps"
+remote_exec "cd $REMOTE_PATH && docker-compose -f docker-compose.prod.yaml ps"
 
 # Test frontend
 echo "Testing frontend..."

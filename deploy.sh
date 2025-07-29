@@ -35,8 +35,14 @@ backup_database() {
     if [ "$BACKUP_ENABLED" = "true" ]; then
         echo -e "${GREEN}📦 Creating database backup...${NC}"
         mkdir -p backups
-        docker-compose exec -T postgres pg_dump -U contract_user contract_db > "backups/backup_$(date +%Y%m%d_%H%M%S).sql"
-        echo -e "${GREEN}✅ Database backup created${NC}"
+        
+        # Check if postgres container is running
+        if docker-compose -f docker-compose.prod.yaml ps postgres | grep -q "Up"; then
+            docker-compose -f docker-compose.prod.yaml exec -T postgres pg_dump -U contract_user contract_db > "backups/backup_$(date +%Y%m%d_%H%M%S).sql"
+            echo -e "${GREEN}✅ Database backup created${NC}"
+        else
+            echo -e "${YELLOW}⚠️  PostgreSQL container not running, skipping backup${NC}"
+        fi
     fi
 }
 
@@ -179,9 +185,6 @@ main() {
     # Check SSL certificates
     check_ssl
     
-    # Backup database (if enabled)
-    backup_database
-    
     # Stop existing containers
     stop_containers
     
@@ -190,6 +193,9 @@ main() {
     
     # Wait for services
     wait_for_services
+    
+    # Backup database (if enabled) - now after containers are running
+    backup_database
     
     # Initialize database
     initialize_database
