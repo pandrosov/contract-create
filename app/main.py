@@ -9,8 +9,8 @@ app = FastAPI(
     description="API для системы управления договорами",
     version="1.0.0",
     openapi_version="3.1.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url=None,  # Отключаем встроенную документацию
+    redoc_url=None,  # Отключаем встроенную документацию
     openapi_url="/openapi.json"
 )
 
@@ -32,6 +32,49 @@ app.add_middleware(
 async def health_check():
     """Health check endpoint for deployment scripts"""
     return {"status": "healthy", "service": "contract-management-api"}
+
+@app.get("/docs")
+async def custom_docs():
+    """Custom documentation endpoint"""
+    from fastapi.responses import HTMLResponse
+    
+    html_content = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Contract Management API - Swagger UI</title>
+        <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui.css" />
+        <style>
+            html { box-sizing: border-box; overflow: -moz-scrollbars-vertical; overflow-y: scroll; }
+            *, *:before, *:after { box-sizing: inherit; }
+            body { margin:0; background: #fafafa; }
+        </style>
+    </head>
+    <body>
+        <div id="swagger-ui"></div>
+        <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui-bundle.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui-standalone-preset.js"></script>
+        <script>
+            window.onload = function() {
+                const ui = SwaggerUIBundle({
+                    url: '/openapi.json',
+                    dom_id: '#swagger-ui',
+                    deepLinking: true,
+                    presets: [
+                        SwaggerUIBundle.presets.apis,
+                        SwaggerUIStandalonePreset
+                    ],
+                    plugins: [
+                        SwaggerUIBundle.plugins.DownloadUrl
+                    ],
+                    layout: "BaseLayout"
+                });
+            };
+        </script>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
 
 app.include_router(auth.router, tags=["auth"])
 app.include_router(folders.router, tags=["folders"])
