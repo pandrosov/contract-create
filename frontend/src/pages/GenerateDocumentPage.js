@@ -73,9 +73,21 @@ export default function GenerateDocumentPage() {
     setSuccess('');
     setLoading(true);
     try {
-      await generateDocument(selectedTemplate.id, fieldValues, csrfToken);
+      const blob = await generateDocument(selectedTemplate.id, fieldValues);
+      
+      // Создаем ссылку для скачивания
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `generated_${selectedTemplate.filename}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
       setSuccess('Документ сгенерирован и скачан');
-    } catch {
+    } catch (error) {
+      console.error('Error generating document:', error);
       setError('Ошибка генерации документа');
     } finally {
       setLoading(false);
