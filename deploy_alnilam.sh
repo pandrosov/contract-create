@@ -156,21 +156,22 @@ fi
 # Create fresh project directory
 echo "Creating fresh project directory..."
 remote_exec "mkdir -p $REMOTE_PATH"
-remote_exec "cd $REMOTE_PATH"
-
-# Verify directory is empty
-echo "Verifying directory is empty..."
-if remote_exec "[ \"\$(ls -A $REMOTE_PATH)\" ]"; then
-    echo -e "${RED}❌ Directory is not empty, cleaning up...${NC}"
-    remote_exec "rm -rf $REMOTE_PATH/*"
-fi
 
 echo -e "${GREEN}✅ Step 2 completed${NC}"
 
 echo -e "${GREEN}📦 Step 3: Cloning repository...${NC}"
 
-# Clone repository into the fresh directory
-remote_exec "git clone -b master $REPO_URL ."
+# Clone repository into a temporary directory and then move files
+echo "Cloning repository to temporary location..."
+remote_exec "cd /opt && git clone -b master $REPO_URL contract-manager-temp"
+
+echo "Moving files to final location..."
+remote_exec "mv /opt/contract-manager-temp/* $REMOTE_PATH/"
+remote_exec "mv /opt/contract-manager-temp/.* $REMOTE_PATH/ 2>/dev/null || true"
+remote_exec "rmdir /opt/contract-manager-temp"
+
+echo "Switching to project directory..."
+remote_exec "cd $REMOTE_PATH"
 
 echo -e "${GREEN}✅ Step 3 completed${NC}"
 
