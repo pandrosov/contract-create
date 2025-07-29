@@ -42,7 +42,7 @@ services:
       - contract-network
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
 
-  # Frontend
+  # Frontend (internal, no ports exposed)
   frontend:
     build:
       context: ./frontend
@@ -50,15 +50,13 @@ services:
     container_name: contract-frontend
     environment:
       - REACT_APP_API_URL=${REACT_APP_API_URL:-http://your-domain.com/api}
-    ports:
-      - "80:80"
     depends_on:
       - backend
     restart: unless-stopped
     networks:
       - contract-network
 
-  # Nginx Reverse Proxy (Optional)
+  # Nginx Reverse Proxy
   nginx:
     image: nginx:alpine
     container_name: contract-nginx
