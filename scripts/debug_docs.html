@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug OpenAPI Documentation</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .debug { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+    </style>
+</head>
+<body>
+    <h1>Debug OpenAPI Documentation</h1>
+    
+    <div id="debug-info" class="debug">
+        <h3>Debug Information</h3>
+        <div id="status">Loading...</div>
+    </div>
+    
+    <div id="json-content" class="debug">
+        <h3>OpenAPI JSON Content</h3>
+        <pre id="json-display"></pre>
+    </div>
+    
+    <div id="swagger-ui"></div>
+    
+    <script>
+        window.onload = function() {
+            const statusDiv = document.getElementById('status');
+            const jsonDisplay = document.getElementById('json-display');
+            
+            statusDiv.innerHTML = 'Fetching OpenAPI JSON...';
+            
+            // Загружаем JSON
+            fetch('https://contract.alnilam.by/api/openapi.json?t=' + Date.now())
+                .then(response => {
+                    statusDiv.innerHTML = 'Response status: ' + response.status;
+                    return response.json();
+                })
+                .then(data => {
+                    statusDiv.innerHTML += '<br>✅ JSON loaded successfully';
+                    statusDiv.innerHTML += '<br>OpenAPI version: ' + data.openapi;
+                    statusDiv.innerHTML += '<br>Title: ' + data.info.title;
+                    
+                    // Показываем JSON
+                    jsonDisplay.textContent = JSON.stringify(data, null, 2);
+                    
+                    // Пытаемся загрузить Swagger UI
+                    loadSwaggerUI();
+                })
+                .catch(error => {
+                    statusDiv.innerHTML = '❌ Error: ' + error.message;
+                    statusDiv.className = 'debug error';
+                });
+        };
+        
+        function loadSwaggerUI() {
+            // Загружаем Swagger UI
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.type = 'text/css';
+            link.href = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui.css';
+            document.head.appendChild(link);
+            
+            const script1 = document.createElement('script');
+            script1.src = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui-bundle.js';
+            script1.onload = function() {
+                const script2 = document.createElement('script');
+                script2.src = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui-standalone-preset.js';
+                script2.onload = function() {
+                    try {
+                        const ui = SwaggerUIBundle({
+                            url: 'https://contract.alnilam.by/api/openapi.json?t=' + Date.now(),
+                            dom_id: '#swagger-ui',
+                            deepLinking: true,
+                            presets: [
+                                SwaggerUIBundle.presets.apis,
+                                SwaggerUIStandalonePreset
+                            ],
+                            plugins: [
+                                SwaggerUIBundle.plugins.DownloadUrl
+                            ],
+                            layout: "BaseLayout"
+                        });
+                        
+                        document.getElementById('status').innerHTML += '<br>✅ Swagger UI loaded successfully';
+                    } catch (error) {
+                        document.getElementById('status').innerHTML += '<br>❌ Swagger UI error: ' + error.message;
+                    }
+                };
+                document.head.appendChild(script2);
+            };
+            document.head.appendChild(script1);
+        }
+    </script>
+</body>
+</html> 
