@@ -1,5 +1,6 @@
 import os
 import shutil
+from pathlib import Path
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 from app.models.template import Template
@@ -16,6 +17,10 @@ def ensure_folder_exists(folder_id: int) -> str:
     folder_path = os.path.join(TEMPLATES_BASE_DIR, str(folder_id))
     os.makedirs(folder_path, exist_ok=True)
     return folder_path
+
+def get_template_file_path(template: Template) -> Path:
+    """Получает путь к файлу шаблона"""
+    return Path(TEMPLATES_BASE_DIR) / str(template.folder_id) / template.filename
 
 def create_template(db: Session, file: UploadFile, folder_id: int, uploaded_by: int) -> Template:
     """Создаёт шаблон, сохраняя файл в правильную папку"""
@@ -68,10 +73,10 @@ def delete_template(db: Session, template_id: int) -> bool:
         return False
     
     # Удаляем физический файл
-    file_path = os.path.join(TEMPLATES_BASE_DIR, str(template.folder_id), template.filename)
-    if os.path.exists(file_path):
+    file_path = get_template_file_path(template)
+    if file_path.exists():
         try:
-            os.remove(file_path)
+            file_path.unlink()
         except Exception as e:
             print(f"Ошибка удаления файла: {e}")
     
@@ -86,8 +91,8 @@ def extract_fields_from_template(template_id: int, db: Session) -> list:
     if not template:
         raise HTTPException(status_code=404, detail="Шаблон не найден")
     
-    file_path = os.path.join(TEMPLATES_BASE_DIR, str(template.folder_id), template.filename)
-    if not os.path.exists(file_path):
+    file_path = get_template_file_path(template)
+    if not file_path.exists():
         raise HTTPException(status_code=404, detail="Файл шаблона не найден")
     
     try:
@@ -101,11 +106,12 @@ def extract_fields_from_template(template_id: int, db: Session) -> list:
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
-                    fields.update(FIELD_PATTERN.findall(cell.text))
+                    for para in cell.paragraphs:
+                        fields.update(FIELD_PATTERN.findall(para.text))
         
-        return list(fields)
+        return sorted(list(fields))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка чтения шаблона: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка чтения файла: {str(e)}")
 
 def generate_document_from_template(template_id: int, values: dict, db: Session) -> bytes:
     """Генерирует документ из шаблона с подстановкой значений"""
@@ -113,24 +119,32 @@ def generate_document_from_template(template_id: int, values: dict, db: Session)
     if not template:
         raise HTTPException(status_code=404, detail="Шаблон не найден")
     
-    file_path = os.path.join(TEMPLATES_BASE_DIR, str(template.folder_id), template.filename)
-    if not os.path.exists(file_path):
+    file_path = get_template_file_path(template)
+    if not file_path.exists():
         raise HTTPException(status_code=404, detail="Файл шаблона не найден")
     
     try:
         with open(file_path, "rb") as f:
             doc = Document(f)
         
+        # Заменяем поля в параграфах
         for para in doc.paragraphs:
-            for key, val in values.items():
-                para.text = para.text.replace(f"{{{{{key}}}}}", str(val))
+            for field in values:
+                placeholder = f"{{{{{field}}}}}"
+                if placeholder in para.text:
+                    para.text = para.text.replace(placeholder, str(values[field]))
         
+        # Заменяем поля в таблицах
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
-                    for key, val in values.items():
-                        cell.text = cell.text.replace(f"{{{{{key}}}}}", str(val))
+                    for para in cell.paragraphs:
+                        for field in values:
+                            placeholder = f"{{{{{field}}}}}"
+                            if placeholder in para.text:
+                                para.text = para.text.replace(placeholder, str(values[field]))
         
+        # Сохраняем в байты
         output = io.BytesIO()
         doc.save(output)
         output.seek(0)
@@ -140,10 +154,10 @@ def generate_document_from_template(template_id: int, values: dict, db: Session)
         raise HTTPException(status_code=500, detail=f"Ошибка генерации документа: {str(e)}")
 
 def cleanup_folder_on_delete(folder_id: int):
-    """Удаляет папку с шаблонами при удалении папки"""
+    """Очищает папку при удалении"""
     folder_path = os.path.join(TEMPLATES_BASE_DIR, str(folder_id))
     if os.path.exists(folder_path):
         try:
             shutil.rmtree(folder_path)
         except Exception as e:
-            print(f"Ошибка удаления папки шаблонов: {e}") 
+            print(f"Ошибка удаления папки: {e}") 

@@ -13,4 +13,5 @@ class User(Base):
     is_admin = Column(Boolean, default=False)
     date_joined = Column(DateTime, default=datetime.datetime.utcnow)
     templates = relationship('Template', back_populates='uploaded_by_user')
-    folders = relationship('Folder', back_populates='created_by_user') 
+    folders = relationship('Folder', back_populates='created_by_user')
+    permissions = relationship('Permission', back_populates='user') 

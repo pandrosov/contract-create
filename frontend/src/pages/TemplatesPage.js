@@ -194,7 +194,7 @@ const TemplatesPage = () => {
                       <div className="table-actions">
                         <button
                           className="btn btn-secondary btn-sm"
-                          onClick={() => window.open(`/api/templates/${template.id}/download`, '_blank')}
+                          onClick={() => window.open(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/templates/${template.id}/download`, '_blank')}
                         >
                           <span>⬇️</span>
                           Скачать

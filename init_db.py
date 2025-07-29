@@ -3,22 +3,33 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from app.core.db import SessionLocal, engine, Base
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from app.core.db import Base
 from app.models.user import User
 from app.models.folder import Folder
 from app.models.template import Template
+from app.models.permission import Permission
 from app.core.security import get_password_hash
 
+# Создаем подключение к базе данных
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://contract_user:secure_password_123@localhost:5432/contract_db")
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 def init_db():
-    db = SessionLocal()
     try:
-        # Создаем таблицы
+        # Создаем все таблицы
         Base.metadata.create_all(bind=engine)
+        print("✅ Таблицы созданы успешно")
+        
+        # Создаем сессию
+        db = SessionLocal()
         
         # Проверяем, есть ли уже пользователи
         existing_users = db.query(User).count()
         if existing_users == 0:
-            # Создаем администратора
+            # Создаем админа
             admin_user = User(
                 username="admin",
                 email="admin@example.com",
@@ -28,29 +39,31 @@ def init_db():
             )
             db.add(admin_user)
             db.commit()
-            print("✅ Администратор создан: admin/admin")
+            print("✅ Пользователь admin создан (логин: admin, пароль: admin)")
+        else:
+            print("ℹ️ Пользователи уже существуют")
         
         # Проверяем, есть ли уже папки
         existing_folders = db.query(Folder).count()
         if existing_folders == 0:
-            # Создаем тестовые папки
-            folders = [
-                Folder(name="Договоры", created_by=1),
-                Folder(name="Шаблоны", created_by=1),
-                Folder(name="Архив", created_by=1)
+            # Создаем дефолтные папки
+            default_folders = [
+                Folder(name="Договоры", path="/contracts", created_by=1),
+                Folder(name="Шаблоны", path="/templates", created_by=1),
+                Folder(name="Архив", path="/archive", created_by=1)
             ]
-            for folder in folders:
+            for folder in default_folders:
                 db.add(folder)
             db.commit()
-            print("✅ Тестовые папки созданы")
+            print("✅ Дефолтные папки созданы")
+        else:
+            print("ℹ️ Папки уже существуют")
         
-        print("✅ База данных инициализирована успешно!")
+        db.close()
+        print("✅ База данных инициализирована успешно")
         
     except Exception as e:
         print(f"❌ Ошибка инициализации: {e}")
-        db.rollback()
-    finally:
-        db.close()
 
 if __name__ == "__main__":
     init_db() 

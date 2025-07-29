@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getCSRFToken } from './auth';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -12,8 +13,9 @@ export async function getFolders() {
   }
 }
 
-export async function createFolder(data, csrfToken) {
+export async function createFolder(data) {
   try {
+    const csrfToken = await getCSRFToken();
     const res = await axios.post(`${API_URL}/folders/`, data, {
       withCredentials: true,
       headers: { 'X-CSRF-Token': csrfToken }
@@ -25,8 +27,9 @@ export async function createFolder(data, csrfToken) {
   }
 }
 
-export async function deleteFolder(folder_id, csrfToken) {
+export async function deleteFolder(folder_id) {
   try {
+    const csrfToken = await getCSRFToken();
     await axios.delete(`${API_URL}/folders/${folder_id}`, {
       withCredentials: true,
       headers: { 'X-CSRF-Token': csrfToken }

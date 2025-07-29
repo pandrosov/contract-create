@@ -18,6 +18,11 @@ const LoginPage = () => {
       ...formData,
       [e.target.name]: e.target.value
     });
+    
+    // Очищаем ошибку при вводе
+    if (error) {
+      setError('');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -28,10 +33,18 @@ const LoginPage = () => {
     try {
       await login(formData.username, formData.password);
       window.showNotification?.('Успешный вход в систему!', 'success');
-      navigate('/folders');
+      navigate('/dashboard');
     } catch (err) {
-      setError(err.message || 'Ошибка входа');
-      window.showNotification?.(err.message || 'Ошибка входа', 'error');
+      let errorMessage = 'Ошибка входа';
+      
+      if (err.response?.data?.detail) {
+        errorMessage = err.response.data.detail;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      window.showNotification?.(errorMessage, 'error');
     } finally {
       setLoading(false);
     }
@@ -42,8 +55,13 @@ const LoginPage = () => {
       <div className="login-container">
         <div className="login-card">
           <div className="login-header">
-            <h1 className="login-title">Contract Manager</h1>
-            <p className="login-subtitle">Войдите в систему управления договорами</p>
+            <div className="login-logo">
+              <span className="logo-icon">📋</span>
+            </div>
+            <h1 className="login-title">Войти в систему</h1>
+            <p className="login-subtitle">
+              Войдите в систему управления договорами
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="login-form">
@@ -61,6 +79,7 @@ const LoginPage = () => {
                 placeholder="Введите имя пользователя"
                 required
                 disabled={loading}
+                autoComplete="username"
               />
             </div>
 
@@ -78,13 +97,14 @@ const LoginPage = () => {
                 placeholder="Введите пароль"
                 required
                 disabled={loading}
+                autoComplete="current-password"
               />
             </div>
 
             {error && (
               <div className="alert alert-error">
-                <span>⚠</span>
-                {error}
+                <span className="alert-icon">⚠️</span>
+                <span className="alert-message">{error}</span>
               </div>
             )}
 
@@ -101,7 +121,7 @@ const LoginPage = () => {
               ) : (
                 <>
                   <span>🔐</span>
-                  Войти
+                  Войти в систему
                 </>
               )}
             </button>
@@ -114,6 +134,18 @@ const LoginPage = () => {
                 Зарегистрироваться
               </Link>
             </p>
+          </div>
+
+          <div className="login-info">
+            <div className="info-card">
+              <div className="info-icon">ℹ️</div>
+              <div className="info-content">
+                <h4 className="info-title">Тестовые данные</h4>
+                <p className="info-text">
+                  Для демонстрации используйте: <strong>admin/admin</strong>
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -5,14 +5,7 @@ const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [csrfToken, setCsrfToken] = useState('');
   const [loading, setLoading] = useState(true);
-
-  // Получить CSRF-токен из cookie
-  const getCsrfFromCookie = () => {
-    const match = document.cookie.match(/csrf_token=([^;]+)/);
-    return match ? decodeURIComponent(match[1]) : '';
-  };
 
   // Проверка авторизации при загрузке
   useEffect(() => {
@@ -22,38 +15,55 @@ export function AuthProvider({ children }) {
   const checkAuth = async () => {
     setLoading(true);
     try {
+      // Сначала проверяем localStorage
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
+      }
+      
+      // Затем проверяем сервер для актуальности данных
       const me = await authApi.getMe();
       setUser(me || null);
-      setCsrfToken(getCsrfFromCookie());
-    } catch {
+      if (me) {
+        localStorage.setItem('user', JSON.stringify(me));
+      }
+    } catch (error) {
+      // Если ошибка аутентификации, очищаем данные
       setUser(null);
-      setCsrfToken('');
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
     } finally {
       setLoading(false);
     }
   };
 
   const login = async (username, password) => {
-    await authApi.login(username, password);
-    await checkAuth();
+    const response = await authApi.login(username, password);
+    setUser(response.user);
+    return response;
   };
 
   const register = async (username, email, password) => {
-    await authApi.register(username, email, password);
+    const response = await authApi.register(username, email, password);
+    return response;
   };
 
   const logout = async () => {
     try {
       await authApi.logout();
-    } catch {
+    } catch (error) {
       // Игнорируем ошибки при выходе
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
     }
-    setUser(null);
-    setCsrfToken('');
   };
 
   return (
-    <AuthContext.Provider value={{ user, csrfToken, loading, login, logout, register, checkAuth }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, register, checkAuth }}>
       {children}
     </AuthContext.Provider>
   );

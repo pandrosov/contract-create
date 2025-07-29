@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { getCSRFToken } from './auth';
 
-const API_URL = process.env.REACT_APP_API_URL || '';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 export async function getUsers() {
   try {
@@ -12,8 +13,9 @@ export async function getUsers() {
   }
 }
 
-export async function activateUser(user_id, is_active, csrfToken) {
+export async function activateUser(user_id, is_active) {
   try {
+    const csrfToken = await getCSRFToken();
     await axios.post(
       `${API_URL}/auth/activate-user`,
       { user_id, is_active },

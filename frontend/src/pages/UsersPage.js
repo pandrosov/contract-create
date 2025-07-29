@@ -3,7 +3,7 @@ import { getUsers, activateUser } from '../api/users';
 import { useAuth } from '../context/AuthContext';
 
 export default function UsersPage() {
-  const { csrfToken, user: currentUser } = useAuth();
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -32,7 +32,7 @@ export default function UsersPage() {
     setError('');
     setSuccess('');
     try {
-      await activateUser(user_id, is_active, csrfToken);
+      await activateUser(user_id, is_active);
       setSuccess('Статус пользователя обновлён');
       fetchUsers();
     } catch {

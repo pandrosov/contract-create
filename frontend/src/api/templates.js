@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { getCSRFToken } from './auth';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 export async function getTemplatesByFolder(folderId) {
   try {
@@ -14,8 +15,9 @@ export async function getTemplatesByFolder(folderId) {
   }
 }
 
-export async function uploadTemplate(file, folder_id, csrfToken) {
+export async function uploadTemplate(file, folder_id) {
   try {
+    const csrfToken = await getCSRFToken();
     const formData = new FormData();
     formData.append('file', file);
     formData.append('folder_id', folder_id);
@@ -34,8 +36,9 @@ export async function uploadTemplate(file, folder_id, csrfToken) {
   }
 }
 
-export async function deleteTemplate(templateId, csrfToken) {
+export async function deleteTemplate(templateId) {
   try {
+    const csrfToken = await getCSRFToken();
     const res = await axios.delete(`${API_URL}/templates/${templateId}`, {
       withCredentials: true,
       headers: { 'X-CSRF-Token': csrfToken }
@@ -59,8 +62,9 @@ export async function getTemplateFields(templateId) {
   }
 }
 
-export async function generateDocument(templateId, values, csrfToken) {
+export async function generateDocument(templateId, values) {
   try {
+    const csrfToken = await getCSRFToken();
     const formData = new FormData();
     formData.append('values', JSON.stringify(values));
     
