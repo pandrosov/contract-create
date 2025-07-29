@@ -137,7 +137,19 @@ echo -e "${GREEN}✅ Step 1 completed${NC}"
 
 echo -e "${GREEN}📁 Step 2: Setting up project directory...${NC}"
 
-# Create project directory
+# Check if directory exists and handle it
+echo "Checking project directory..."
+if remote_exec "[ -d $REMOTE_PATH ]"; then
+    echo -e "${YELLOW}⚠️  Directory $REMOTE_PATH already exists${NC}"
+    echo "Checking contents..."
+    remote_exec "ls -la $REMOTE_PATH"
+    
+    echo -e "${BLUE}Backing up existing directory...${NC}"
+    remote_exec "mv $REMOTE_PATH ${REMOTE_PATH}_backup_$(date +%Y%m%d_%H%M%S)"
+    echo -e "${GREEN}✅ Existing directory backed up${NC}"
+fi
+
+# Create fresh project directory
 remote_exec "mkdir -p $REMOTE_PATH"
 remote_exec "cd $REMOTE_PATH"
 
@@ -238,5 +250,6 @@ echo "2. Consider using Let's Encrypt for production SSL certificates"
 echo "3. Configure your domain DNS to point to $SERVER_IP"
 echo "4. Set up regular backups"
 echo "5. This deployment uses the master branch (production-ready)"
+echo "6. Previous deployment was backed up to ${REMOTE_PATH}_backup_*"
 echo ""
 echo -e "${GREEN}🚀 Your application is now live at https://$DOMAIN!${NC}" 
