@@ -2,7 +2,6 @@ from sqlalchemy.orm import Session
 from app.models.folder import Folder
 from app.schemas.folder import FolderCreate
 from app.models.permission import Permission
-from app.services.template_service import cleanup_folder_on_delete
 
 def list_folders(db: Session):
     return db.query(Folder).all()
@@ -29,8 +28,6 @@ def create_folder(db: Session, folder: FolderCreate, created_by: int, path: str)
 def delete_folder(db: Session, folder_id: int):
     folder = get_folder_by_id(db, folder_id)
     if folder:
-        # Удаляем папку с шаблонами
-        cleanup_folder_on_delete(folder_id)
         # Удаляем запись из БД
         db.delete(folder)
         db.commit()

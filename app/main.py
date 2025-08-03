@@ -1,11 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import auth, folders, templates, users, permissions, logs
+from app.api import auth, folders, templates, users, permissions, logs, acts, settings
 
 app = FastAPI(
     title="Contract Management API",
     description="API для системы управления договорами",
-    version="1.0.0",
+    version="2.0.0",
     openapi_version="3.1.0",
     docs_url=None,  # Отключаем встроенную документацию
     redoc_url=None,  # Отключаем встроенную документацию
@@ -33,6 +33,8 @@ app.include_router(templates.router)
 app.include_router(users.router)
 app.include_router(permissions.router)
 app.include_router(logs.router)
+app.include_router(acts.router)
+app.include_router(settings.router)
 
 @app.get("/health")
 async def health_check():

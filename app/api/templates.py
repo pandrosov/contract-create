@@ -1,153 +1,271 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from typing import List
+import os
+import shutil
+import zipfile
 from app.core.db import get_db
-from app.core.security import get_current_user, check_csrf
-from app.schemas.template import TemplateOut
-from app.services.template_service import (
-    create_template, 
-    get_templates_by_folder, 
-    delete_template,
-    extract_fields_from_template,
-    generate_document_from_template
-)
-import json
-from urllib.parse import quote
-import io
+from app.models.template import Template
+from app.models.folder import Folder
+from app.services.template_service import TemplateService
+from app.services.placeholder_service import PlaceholderService
+from app.api.auth import get_current_user
+from app.models.user import User
 
 router = APIRouter(prefix="/templates", tags=["templates"])
 
-@router.post("/", response_model=TemplateOut)
-def upload_template_route(
+@router.post("/upload")
+async def upload_template(
     file: UploadFile = File(...),
     folder_id: int = Form(...),
-    db: Session = Depends(get_db), 
-    user=Depends(get_current_user), 
-    request: Request = None
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    """Загружает шаблон docx в указанную папку"""
-    # check_csrf(request)  # Временно отключено для тестирования
-    return create_template(db, file, folder_id, user.id)
+    """Загружает шаблон в указанную папку"""
+    if not file.filename.endswith('.docx'):
+        raise HTTPException(status_code=400, detail="Поддерживаются только .docx файлы")
+    
+    # Проверяем существование папки
+    folder = db.query(Folder).filter(Folder.id == folder_id).first()
+    if not folder:
+        raise HTTPException(status_code=404, detail="Папка не найдена")
+    
+    try:
+        template_service = TemplateService(db)
+        template = template_service.upload_template(file, folder_id, current_user.id)
+        
+        return {
+            "message": "Шаблон успешно загружен",
+            "template": {
+                "id": template.id,
+                "filename": template.filename,
+                "folder_id": template.folder_id,
+                "created_at": template.created_at
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка загрузки шаблона: {str(e)}")
+
+@router.get("/")
+async def get_templates(db: Session = Depends(get_db)):
+    """Получает все шаблоны"""
+    template_service = TemplateService(db)
+    templates = template_service.get_all_templates()
+    
+    return {
+        "data": [
+            {
+                "id": template.id,
+                "filename": template.filename,
+                "folder_id": template.folder_id,
+                "user_id": template.user_id,
+                "created_at": template.created_at
+            }
+            for template in templates
+        ]
+    }
 
 @router.get("/folder/{folder_id}")
-def get_templates_by_folder_route(
-    folder_id: int, 
-    db: Session = Depends(get_db), 
-    user=Depends(get_current_user)
-):
-    """Получает все шаблоны в папке"""
-    templates = get_templates_by_folder(db, folder_id)
-    return [TemplateOut.model_validate(template) for template in templates]
+async def get_templates_by_folder(folder_id: int, db: Session = Depends(get_db)):
+    """Получает шаблоны в папке"""
+    template_service = TemplateService(db)
+    templates = template_service.get_templates_by_folder(folder_id)
+    
+    return {
+        "data": [
+            {
+                "id": template.id,
+                "filename": template.filename,
+                "folder_id": template.folder_id,
+                "user_id": template.user_id,
+                "created_at": template.created_at
+            }
+            for template in templates
+        ]
+    }
 
 @router.delete("/{template_id}")
-def delete_template_route(
-    template_id: int, 
-    db: Session = Depends(get_db), 
-    user=Depends(get_current_user),
-    request: Request = None
+async def delete_template(
+    template_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Удаляет шаблон"""
-    # check_csrf(request)  # Временно отключено для тестирования
-    success = delete_template(db, template_id)
-    if not success:
+    template_service = TemplateService(db)
+    template = template_service.get_template_by_id(template_id)
+    
+    if not template:
         raise HTTPException(status_code=404, detail="Шаблон не найден")
-    return {"message": "Шаблон удалён"}
+    
+    if template.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Нет прав для удаления этого шаблона")
+    
+    success = template_service.delete_template(template_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Ошибка удаления шаблона")
+    
+    return {"message": "Шаблон успешно удален"}
 
 @router.get("/{template_id}/fields")
-def get_template_fields(template_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    """Получает список полей из шаблона"""
+async def get_template_fields(template_id: int, db: Session = Depends(get_db)):
+    """Извлекает поля из шаблона"""
+    template_service = TemplateService(db)
+    placeholder_service = PlaceholderService(db)
+    template = template_service.get_template_by_id(template_id)
+    
+    if not template:
+        raise HTTPException(status_code=404, detail="Шаблон не найден")
+    
     try:
-        fields = extract_fields_from_template(template_id, db)
-        return {"fields": fields}
-    except HTTPException:
-        raise
+        placeholders = template_service.extract_placeholders(template_id)
+        descriptions = placeholder_service.get_descriptions_dict(template_id)
+        
+        # Объединяем плейсхолдеры с описаниями
+        fields_with_descriptions = []
+        for placeholder in placeholders:
+            fields_with_descriptions.append({
+                "name": placeholder,
+                "description": descriptions.get(placeholder, "")
+            })
+        
+        return {"data": fields_with_descriptions}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка извлечения полей: {str(e)}")
 
 @router.post("/{template_id}/generate")
-def generate_document_route(
+async def generate_document(
     template_id: int,
     values: str = Form(...),  # JSON строка с значениями
-    output_format: str = Form("docx"),  # Формат выходного файла: docx или pdf
-    db: Session = Depends(get_db),
-    user=Depends(get_current_user),
-    request: Request = None
+    output_format: str = Form("docx"),
+    filename_template: str = Form(None),  # Шаблон названия файла
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    """Генерирует документ из шаблона с подстановкой значений"""
-    # check_csrf(request)  # Временно отключено для тестирования
+    """Генерирует документ из шаблона"""
+    import json
     
-    try:
-        values_dict = json.loads(values)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Неверный формат JSON")
+    template_service = TemplateService(db)
+    template = template_service.get_template_by_id(template_id)
     
-    # Проверяем формат
-    if output_format.lower() not in ["docx", "pdf"]:
-        raise HTTPException(status_code=400, detail="Поддерживаются только форматы docx и pdf")
-    
-    try:
-        doc_bytes = generate_document_from_template(template_id, values_dict, db, output_format)
-        
-        # Получаем информацию о шаблону для имени файла
-        from app.services.template_service import get_template_by_id
-        template = get_template_by_id(db, template_id)
-        if not template:
-            raise HTTPException(status_code=404, detail="Шаблон не найден")
-        
-        original_name = template.filename
-        base_name = original_name.replace('.docx', '')
-        extension = '.pdf' if output_format.lower() == 'pdf' else '.docx'
-        generated_name = f"generated_{base_name}{extension}"
-        
-        safe_ascii = generated_name.encode('ascii', 'ignore').decode('ascii') or f'contract{extension}'
-        safe_utf8 = quote(generated_name)
-        
-        # Определяем MIME тип
-        if output_format.lower() == 'pdf':
-            media_type = "application/pdf"
-        else:
-            media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        
-        headers = {
-            "Content-Disposition": f"attachment; filename={safe_ascii}; filename*=UTF-8''{safe_utf8}"
-        }
-        
-        return StreamingResponse(
-            io.BytesIO(doc_bytes),
-            media_type=media_type,
-            headers=headers
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка генерации документа: {str(e)}")
-
-@router.get("/{template_id}/download")
-def download_template_route(
-    template_id: int,
-    db: Session = Depends(get_db),
-    user=Depends(get_current_user)
-):
-    """Скачивает оригинальный шаблон"""
-    from app.services.template_service import get_template_by_id, get_template_file_path
-    template = get_template_by_id(db, template_id)
     if not template:
         raise HTTPException(status_code=404, detail="Шаблон не найден")
     
-    file_path = get_template_file_path(template)
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Файл шаблона не найден")
+    try:
+        # Парсим JSON с значениями
+        values_dict = json.loads(values)
+        
+        # Генерируем документ
+        output_path = template_service.generate_document(
+            template_id=template_id,
+            values=values_dict,
+            output_format=output_format
+        )
+        
+        # Формируем название файла
+        if filename_template:
+            try:
+                # Заменяем плейсхолдеры в шаблоне названия файла
+                custom_filename = filename_template
+                for key, value in values_dict.items():
+                    placeholder = f"{{{{{key}}}}}"
+                    custom_filename = custom_filename.replace(placeholder, str(value))
+                
+                # Убираем недопустимые символы для имени файла
+                import re
+                custom_filename = re.sub(r'[<>:"/\\|?*]', '_', custom_filename)
+                custom_filename = custom_filename.strip()
+                
+                # Добавляем расширение
+                if not custom_filename.endswith(f'.{output_format}'):
+                    custom_filename += f'.{output_format}'
+                
+                filename = custom_filename
+            except Exception as e:
+                print(f"Ошибка формирования названия файла: {e}")
+                filename = os.path.basename(output_path)
+        else:
+            filename = os.path.basename(output_path)
+        
+        return FileResponse(
+            path=output_path,
+            filename=filename,
+            media_type="application/octet-stream"
+        )
+        
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Неверный формат JSON")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка генерации документа: {str(e)}")
+
+@router.get("/{template_id}/placeholder-descriptions")
+async def get_placeholder_descriptions(
+    template_id: int,
+    db: Session = Depends(get_db)
+):
+    """Получает описания плейсхолдеров для шаблона"""
+    # Проверяем существование шаблона
+    template = db.query(Template).filter(Template.id == template_id).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Шаблон не найден")
     
-    with open(file_path, "rb") as f:
-        content = f.read()
+    placeholder_service = PlaceholderService(db)
+    descriptions = placeholder_service.get_descriptions_dict(template_id)
     
-    safe_ascii = template.filename.encode('ascii', 'ignore').decode('ascii') or 'template.docx'
-    safe_utf8 = quote(template.filename)
+    return {"data": descriptions}
+
+@router.post("/{template_id}/placeholder-descriptions")
+async def create_placeholder_description(
+    template_id: int,
+    placeholder_name: str = Form(...),
+    description: str = Form(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Создает или обновляет описание плейсхолдера"""
+    # Проверяем существование шаблона
+    template = db.query(Template).filter(Template.id == template_id).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Шаблон не найден")
     
-    headers = {
-        "Content-Disposition": f"attachment; filename={safe_ascii}; filename*=UTF-8''{safe_utf8}"
-    }
+    placeholder_service = PlaceholderService(db)
     
-    return StreamingResponse(
-        io.BytesIO(content),
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers=headers
-    ) 
+    try:
+        result = placeholder_service.create_or_update_description(
+            template_id=template_id,
+            placeholder_name=placeholder_name,
+            description=description
+        )
+        
+        return {
+            "message": "Описание плейсхолдера сохранено",
+            "data": {
+                "id": result.id,
+                "placeholder_name": result.placeholder_name,
+                "description": result.description
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка сохранения описания: {str(e)}")
+
+@router.delete("/{template_id}/placeholder-descriptions/{placeholder_name}")
+async def delete_placeholder_description(
+    template_id: int,
+    placeholder_name: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Удаляет описание плейсхолдера"""
+    # Проверяем существование шаблона
+    template = db.query(Template).filter(Template.id == template_id).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Шаблон не найден")
+    
+    placeholder_service = PlaceholderService(db)
+    
+    success = placeholder_service.delete_description(template_id, placeholder_name)
+    
+    if success:
+        return {"message": "Описание плейсхолдера удалено"}
+    else:
+        raise HTTPException(status_code=404, detail="Описание не найдено") 

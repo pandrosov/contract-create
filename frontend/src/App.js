@@ -16,6 +16,8 @@ import GenerateDocumentPage from './pages/GenerateDocumentPage';
 import UsersPage from './pages/UsersPage';
 import PermissionsPage from './pages/PermissionsPage';
 import LogsPage from './pages/LogsPage';
+import ActGenerationPage from './pages/ActGenerationPage';
+import SettingsPage from './pages/SettingsPage';
 
 // Styles
 import './styles/global.css';
@@ -102,6 +104,22 @@ const App = () => {
               <ProtectedRoute>
                 <ProtectedLayout>
                   <LogsPage />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/acts" element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <ActGenerationPage />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <SettingsPage />
                 </ProtectedLayout>
               </ProtectedRoute>
             } />

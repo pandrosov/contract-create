@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -10,6 +10,9 @@ from app.models.user import User
 from app.models.folder import Folder
 from app.models.template import Template
 from app.models.permission import Permission
+from app.models.action_log import ActionLog
+from app.models.settings import Settings
+from app.models.placeholder_description import PlaceholderDescription
 from app.core.security import get_password_hash
 
 # Создаем подключение к базе данных
@@ -59,6 +62,29 @@ def init_db():
         else:
             print("ℹ️ Папки уже существуют")
         
+        # Проверяем, есть ли уже настройки
+        existing_settings = db.query(Settings).count()
+        if existing_settings == 0:
+            # Создаем дефолтные настройки
+            default_settings = [
+                Settings(
+                    key="document_help_info",
+                    value="Для правильного заполнения документов:\n\n1. Все поля должны быть заполнены корректно\n2. Даты указывать в формате ДД.ММ.ГГГГ\n3. Суммы указывать цифрами\n4. ФИО указывать полностью",
+                    description="Информация для помощи при заполнении документов"
+                ),
+                Settings(
+                    key="contract_help_info",
+                    value="При заполнении договоров обратите внимание:\n\n- Номер договора должен быть уникальным\n- Сумма указывается цифрами и прописью\n- Дата подписания обязательна\n- Все реквизиты должны быть актуальными",
+                    description="Специфичная информация для договоров"
+                )
+            ]
+            for setting in default_settings:
+                db.add(setting)
+            db.commit()
+            print("✅ Дефолтные настройки созданы")
+        else:
+            print("ℹ️ Настройки уже существуют")
+        
         db.close()
         print("✅ База данных инициализирована успешно")
         
@@ -66,4 +92,4 @@ def init_db():
         print(f"❌ Ошибка инициализации: {e}")
 
 if __name__ == "__main__":
-    init_db() 
+    init_db()

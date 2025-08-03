@@ -333,4 +333,394 @@
     margin-left: 0;
     padding: 16px 6px 16px 6px;
   }
+}
+
+/* Стили для поля с подсказкой */
+.form-help {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.85rem;
+  color: #666;
+  font-style: italic;
+}
+
+.form-help::before {
+  content: "💡 ";
+  margin-right: 4px;
+}
+
+/* Стили для улучшенного анализа данных */
+.missing-data-list {
+  margin-top: 8px;
+}
+
+.missing-data-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  margin: 2px 0;
+  background: #fff3cd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.column-name {
+  font-weight: 500;
+  flex: 1;
+}
+
+.missing-count {
+  color: #856404;
+  font-weight: 600;
+  margin: 0 8px;
+}
+
+.missing-percentage {
+  color: #856404;
+  font-size: 0.8rem;
+}
+
+.data-types-analysis,
+.numeric-stats {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.data-types-grid,
+.numeric-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.data-type-item,
+.numeric-stat-item {
+  padding: 6px 8px;
+  background: white;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+.data-type {
+  color: #6c757d;
+  font-size: 0.85rem;
+  font-family: monospace;
+}
+
+.stat-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  font-size: 0.85rem;
+  color: #495057;
+}
+
+.stat-details span {
+  display: block;
+}
+
+/* Стили для полей преобразования чисел в текст */
+.number-to-text-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 12px;
+  background: #f9fafb;
+}
+
+.field-checkbox {
+  display: flex;
+  align-items: center;
+}
+
+.field-checkbox label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.field-checkbox label:hover {
+  background: #e5e7eb;
+}
+
+.field-checkbox input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+  .field-checkbox span {
+    font-size: 0.9rem;
+    color: #374151;
+  }
+  
+  /* Стили для страницы настроек */
+  .settings-page {
+    padding: 20px 0;
+  }
+  
+  .settings-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-top: 20px;
+  }
+  
+  .setting-form {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+  }
+  
+  .settings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .setting-item {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .setting-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  
+  .setting-header h4 {
+    margin: 0;
+    color: #374151;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+  
+  .setting-actions {
+    display: flex;
+    gap: 8px;
+  }
+  
+  .btn-small {
+    padding: 4px 12px;
+    font-size: 0.85rem;
+  }
+  
+  .setting-content {
+    margin-top: 8px;
+  }
+  
+  .setting-content p {
+    margin: 0 0 8px 0;
+    white-space: pre-wrap;
+    line-height: 1.5;
+  }
+  
+  .setting-description {
+    color: #6c757d;
+    font-style: italic;
+  }
+  
+  .setting-edit {
+    margin-top: 12px;
+  }
+  
+  .edit-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  
+  .loading {
+    text-align: center;
+    padding: 40px;
+    color: #6c757d;
+  }
+  
+  @media (max-width: 768px) {
+    .settings-layout {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+  }
+  
+  /* Стили для информационного поля */
+  .help-info-section {
+    background: #e3f2fd;
+    border: 1px solid #2196f3;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  
+  .help-info-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    color: #1976d2;
+    font-size: 1.1rem;
+  }
+  
+  .help-icon {
+    font-size: 1.2rem;
+  }
+  
+  .help-info-content {
+    color: #374151;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  
+  /* Стили для полей с описаниями */
+  .field-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    color: #374151;
+  }
+  
+  .field-help-icon {
+    cursor: help;
+    color: #6b7280;
+    font-size: 0.9rem;
+    transition: color 0.2s ease;
+  }
+  
+  .field-help-icon:hover {
+    color: #3b82f6;
+  }
+  
+  .field-description {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.85rem;
+    color: #6c757d;
+    font-style: italic;
+    line-height: 1.4;
+  }
+  
+  /* Специальные стили для информации о договорах */
+  .help-info-section.contract-help {
+    background: #fff3e0;
+    border-color: #ff9800;
+  }
+  
+  .help-info-section.contract-help .help-info-header {
+    color: #e65100;
+  }
+
+/* Стили для улучшенной загрузки файла */
+.file-upload-container {
+  margin-bottom: 20px;
+}
+
+.file-upload-area {
+  position: relative;
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  padding: 32px 24px;
+  text-align: center;
+  background: #f9fafb;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.file-upload-area:hover {
+  border-color: #6b7280;
+  background: #f3f4f6;
+}
+
+.file-upload-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+  color: #6b7280;
+}
+
+.file-upload-text {
+  margin-bottom: 20px;
+}
+
+.file-upload-text strong {
+  display: block;
+  font-size: 1.1rem;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.file-upload-text p {
+  color: #6b7280;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.file-input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  cursor: pointer;
+}
+
+.file-upload-button {
+  display: inline-block;
+  background: #3b82f6;
+  color: white;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.file-upload-button:hover {
+  background: #2563eb;
+}
+
+.file-info {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.file-icon {
+  font-size: 1.1rem;
+}
+
+.file-name {
+  font-weight: 500;
+  color: #1e40af;
+  flex: 1;
+}
+
+.file-size {
+  color: #6b7280;
+  font-size: 0.8rem;
 } 

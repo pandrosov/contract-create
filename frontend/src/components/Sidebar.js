@@ -33,6 +33,12 @@ const Sidebar = ({ collapsed = false, onToggle }) => {
           label: 'Создать документ',
           icon: '✏️',
           description: 'Генерация документов'
+        },
+        {
+          path: '/acts',
+          label: 'Генерация актов',
+          icon: '📋',
+          description: 'Массовая генерация актов'
         }
       ]
     },
@@ -58,6 +64,13 @@ const Sidebar = ({ collapsed = false, onToggle }) => {
           label: 'Логи системы',
           icon: '📊',
           description: 'Просмотр логов',
+          adminOnly: true
+        },
+        {
+          path: '/settings',
+          label: 'Настройки',
+          icon: '⚙️',
+          description: 'Настройки системы',
           adminOnly: true
         }
       ]

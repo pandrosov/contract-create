@@ -4,6 +4,7 @@ import { getFolders } from '../api/folders';
 import FileUpload from '../components/FileUpload';
 import Modal from '../components/Modal';
 import LoadingSpinner from '../components/LoadingSpinner';
+import PlaceholderDescriptionsModal from '../components/PlaceholderDescriptionsModal';
 
 const TemplatesPage = () => {
   const [templates, setTemplates] = useState([]);
@@ -13,6 +14,8 @@ const TemplatesPage = () => {
   const [uploading, setUploading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [showDescriptionsModal, setShowDescriptionsModal] = useState(false);
+  const [selectedTemplateForDescriptions, setSelectedTemplateForDescriptions] = useState(null);
 
   useEffect(() => {
     fetchFolders();
@@ -85,6 +88,16 @@ const TemplatesPage = () => {
       console.error('Error deleting template:', error);
       window.showNotification?.('Ошибка при удалении шаблона', 'error');
     }
+  };
+
+  const handleOpenDescriptions = (template) => {
+    setSelectedTemplateForDescriptions(template);
+    setShowDescriptionsModal(true);
+  };
+
+  const handleCloseDescriptions = () => {
+    setShowDescriptionsModal(false);
+    setSelectedTemplateForDescriptions(null);
   };
 
   const formatDate = (dateString) => {
@@ -189,9 +202,17 @@ const TemplatesPage = () => {
                     <td>
                       {folders.find(f => f.id === template.folder_id)?.name || 'Неизвестная папка'}
                     </td>
-                    <td>{formatDate(template.uploaded_at)}</td>
+                    <td>{formatDate(template.created_at)}</td>
                     <td>
                       <div className="table-actions">
+                        <button
+                          className="btn btn-info btn-sm"
+                          onClick={() => handleOpenDescriptions(template)}
+                          title="Управление описаниями плейсхолдеров"
+                        >
+                          <span>📝</span>
+                          Описания
+                        </button>
                         <button
                           className="btn btn-secondary btn-sm"
                           onClick={() => window.open(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/templates/${template.id}/download`, '_blank')}
@@ -284,6 +305,15 @@ const TemplatesPage = () => {
           </div>
         </div>
       </Modal>
+
+      <PlaceholderDescriptionsModal
+        isOpen={showDescriptionsModal}
+        onClose={handleCloseDescriptions}
+        template={selectedTemplateForDescriptions}
+        onUpdate={() => {
+          // Можно добавить обновление данных если нужно
+        }}
+      />
     </div>
   );
 };

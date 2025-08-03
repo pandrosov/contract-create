@@ -6,5 +6,6 @@ class Settings:
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./service.db")
+    TEMPLATES_DIR: str = os.getenv("TEMPLATES_DIR", "templates")
 
 settings = Settings() 
