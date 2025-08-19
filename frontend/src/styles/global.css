@@ -2875,3 +2875,191 @@ select.form-control {
   color: #6b7280;
   font-style: italic;
 } 
+
+/* Стили для маппинга */
+.mapping-container {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.mapping-row {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.placeholder {
+  min-width: 150px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.mapping-arrow {
+  font-size: 18px;
+  color: #6c757d;
+  font-weight: bold;
+}
+
+.free-input-toggle {
+  display: flex;
+  align-items: center;
+  margin-right: 10px;
+}
+
+.checkbox-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #6c757d;
+  cursor: pointer;
+}
+
+.checkbox-option input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.checkbox-option span {
+  white-space: nowrap;
+}
+
+.column-select {
+  flex: 1;
+  min-width: 200px;
+}
+
+.column-select select,
+.column-select input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+  background: white;
+}
+
+.column-select select:focus,
+.column-select input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Адаптивность для маппинга */
+@media (max-width: 768px) {
+  .mapping-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  
+  .placeholder {
+    min-width: auto;
+    text-align: center;
+  }
+  
+  .mapping-arrow {
+    transform: rotate(90deg);
+  }
+  
+  .free-input-toggle {
+    margin-right: 0;
+    justify-content: center;
+  }
+  
+  .column-select {
+    min-width: auto;
+  }
+}
+
+/* Стили для преобразования чисел в текст */
+.number-to-text-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 15px;
+  background: #f8f9fa;
+}
+
+.field-checkbox {
+  display: flex;
+  align-items: center;
+}
+
+.field-checkbox label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #495057;
+  padding: 5px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.field-checkbox label:hover {
+  background-color: #e9ecef;
+}
+
+.field-checkbox input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: #007bff;
+}
+
+.field-checkbox span {
+  flex: 1;
+  word-break: break-word;
+}
+
+/* Стили для радио-кнопок */
+.radio-options {
+  display: flex;
+  gap: 20px;
+  margin-top: 10px;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #495057;
+}
+
+.radio-option input[type="radio"] {
+  margin: 0;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: #007bff;
+}
+
+/* Адаптивность для чек-боксов */
+@media (max-width: 768px) {
+  .number-to-text-fields {
+    grid-template-columns: 1fr;
+    max-height: 150px;
+  }
+  
+  .radio-options {
+    flex-direction: column;
+    gap: 10px;
+  }
+}

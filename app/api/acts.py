@@ -97,6 +97,51 @@ async def analyze_excel_file(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Ошибка анализа файла: {str(e)}")
 
+@router.post("/get-column-values")
+async def get_column_values(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Получает уникальные значения для всех столбцов Excel файла"""
+    try:
+        # Проверяем расширение файла
+        if not file.filename.endswith(('.xlsx', '.xls')):
+            raise HTTPException(status_code=400, detail="Поддерживаются только файлы Excel (.xlsx, .xls)")
+        
+        # Читаем содержимое файла
+        content = await file.read()
+        
+        # Анализируем Excel файл с помощью pandas
+        df = pd.read_excel(io.BytesIO(content), engine='openpyxl')
+        
+        # Функция для безопасной сериализации значений
+        def safe_serialize(value):
+            if pd.isna(value):
+                return None
+            elif isinstance(value, (int, float)):
+                if pd.isna(value):
+                    return None
+                return str(value)
+            else:
+                return str(value)
+        
+        # Получаем уникальные значения для каждого столбца
+        column_values = {}
+        for col in df.columns:
+            # Получаем уникальные значения, исключая NaN
+            unique_vals = df[col].dropna().unique()
+            # Преобразуем в строки и сортируем
+            column_values[col] = sorted([safe_serialize(val) for val in unique_vals])
+        
+        return {
+            "column_values": column_values,
+            "total_rows": len(df),
+            "columns": df.columns.tolist()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Ошибка получения значений столбцов: {str(e)}")
+
 @router.get("/template-placeholders/{template_id}")
 async def get_template_placeholders(
     template_id: int,
@@ -149,13 +194,23 @@ async def generate_acts(
         # Парсим маппинг
         try:
             mapping_dict = json.loads(mapping)
-        except json.JSONDecodeError:
+            print(f"Маппинг успешно распарсен: {mapping_dict}")
+        except json.JSONDecodeError as e:
+            print(f"Ошибка парсинга маппинга: {e}")
+            print(f"Сырые данные маппинга: {mapping}")
             raise HTTPException(status_code=400, detail="Неверный формат маппинга")
         
         # Читаем Excel файл с помощью pandas
         content = await excel_file.read()
-        df = pd.read_excel(io.BytesIO(content), engine='openpyxl')
+        df = pd.read_excel(
+            io.BytesIO(content), 
+            engine='openpyxl',
+            parse_dates=True,  # Автоматически определяем даты
+            keep_default_na=True,  # Сохраняем NaN значения
+            na_values=['', 'nan', 'NaN', 'NULL', 'null']  # Дополнительные значения для NaN
+        )
         print(f"Excel файл прочитан: {len(df)} строк, {len(df.columns)} столбцов")
+        print(f"Типы данных столбцов: {df.dtypes.to_dict()}")
         
         # Получаем фильтры из параметров функции
         filters = []
@@ -178,10 +233,21 @@ async def generate_acts(
         
         # Применяем множественные фильтры
         filtered_df = df.copy()
+        print(f"Начальная фильтрация: {len(filtered_df)} строк")
+        
+        # Группируем фильтры по столбцам
+        column_filters = {}
         for filter_item in filters:
             column = filter_item['column']
             value = filter_item['value']
-            
+            if column not in column_filters:
+                column_filters[column] = []
+            column_filters[column].append(value)
+        
+        print(f"Сгруппированные фильтры: {column_filters}")
+        
+        # Применяем фильтры по столбцам
+        for column, values in column_filters.items():
             if column not in filtered_df.columns:
                 available_columns = list(filtered_df.columns)
                 raise HTTPException(
@@ -189,8 +255,10 @@ async def generate_acts(
                     detail=f"Столбец '{column}' не найден в файле. Доступные столбцы: {available_columns}"
                 )
             
-            # Фильтруем данные
-            filtered_df = filtered_df[filtered_df[column].astype(str) == str(value)]
+            # Фильтруем данные - используем OR для множественных значений одного столбца
+            mask = filtered_df[column].astype(str).isin(values)
+            filtered_df = filtered_df[mask]
+            print(f"После фильтра по столбцу '{column}' с значениями {values}: {len(filtered_df)} строк")
         
         if len(filtered_df) == 0:
             # Показываем уникальные значения в первом столбце для помощи пользователю

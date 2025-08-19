@@ -5,11 +5,50 @@ from typing import Dict, List, Any
 from sqlalchemy.orm import Session
 from app.services.template_service import TemplateService
 from app.utils.number_to_text import number_to_text, format_number_with_text, get_currency_declension
+from datetime import datetime
 
 class ActService:
     def __init__(self, db: Session):
         self.db = db
         self.template_service = TemplateService(db)
+
+    def format_value(self, value, original_format=None):
+        """Форматирует значение с сохранением оригинального формата"""
+        if pd.isna(value):
+            return ""
+        
+        # Если это datetime объект, форматируем как дату
+        if isinstance(value, datetime):
+            if original_format:
+                try:
+                    return value.strftime(original_format)
+                except:
+                    pass
+            # Пытаемся определить формат из значения
+            if value.hour == 0 and value.minute == 0 and value.second == 0:
+                # Это дата без времени
+                return value.strftime("%d.%m.%Y")
+            else:
+                # Это дата со временем
+                return value.strftime("%d.%m.%Y %H:%M")
+        
+        # Если это pandas Timestamp
+        if hasattr(value, 'strftime'):
+            if original_format:
+                try:
+                    return value.strftime(original_format)
+                except:
+                    pass
+            # Пытаемся определить формат из значения
+            if hasattr(value, 'hour') and value.hour == 0 and value.minute == 0 and value.second == 0:
+                # Это дата без времени
+                return value.strftime("%d.%m.%Y")
+            else:
+                # Это дата со временем
+                return value.strftime("%d.%m.%Y %H:%M")
+        
+        # Для остальных типов используем строковое представление
+        return str(value)
 
     def analyze_excel_file(self, file) -> Dict[str, Any]:
         """Анализирует Excel файл и возвращает информацию о структуре"""
@@ -112,36 +151,54 @@ class ActService:
             raise ValueError(f"Ошибка анализа качества данных: {str(e)}")
 
     def validate_mapping(self, df: pd.DataFrame, mapping: Dict[str, str]) -> Dict[str, Any]:
-        """Валидирует маппинг плейсхолдеров на столбцы Excel"""
+        """Валидирует маппинг плейсхолдеров со столбцами"""
         try:
-            
             errors = []
             warnings = []
             mapped_columns = []
             
-            # Проверяем каждый маппинг
-            for placeholder, column in mapping.items():
-                if column not in df.columns:
-                    errors.append(f"Столбец '{column}' не найден в файле для плейсхолдера '{placeholder}'")
-                else:
-                    mapped_columns.append(column)
+            for placeholder, column_or_value in mapping.items():
+                if not placeholder:
+                    errors.append(f"Пустой плейсхолдер")
+                    continue
+                
+                if not column_or_value:
+                    errors.append(f"Плейсхолдер '{placeholder}' не привязан к столбцу или значению")
+                    continue
+                
+                # Проверяем, является ли значение названием столбца или свободным вводом
+                if column_or_value in df.columns:
+                    # Это столбец из Excel файла
+                    mapped_columns.append(column_or_value)
                     
-                    # Проверяем наличие пустых значений
-                    empty_count = df[column].isna().sum()
-                    if empty_count > 0:
-                        warnings.append(f"В столбце '{column}' найдено {empty_count} пустых значений")
+                    # Проверяем наличие данных в столбце
+                    non_null_count = df[column_or_value].notna().sum()
+                    if non_null_count == 0:
+                        warnings.append(f"Столбец '{column_or_value}' для плейсхолдера '{placeholder}' не содержит данных")
+                    elif non_null_count < len(df):
+                        warnings.append(f"Столбец '{column_or_value}' для плейсхолдера '{placeholder}' содержит пустые значения")
+                else:
+                    # Это свободный ввод - проверяем, что значение не пустое
+                    if not column_or_value.strip():
+                        errors.append(f"Свободный ввод для плейсхолдера '{placeholder}' пустой")
+                    else:
+                        # Для свободного ввода не добавляем в mapped_columns, так как это не столбец
+                        pass
             
-            # Проверяем, что все плейсхолдеры имеют маппинг
-            if not mapping:
-                errors.append("Не указан маппинг плейсхолдеров")
+            # Проверяем, что все плейсхолдеры имеют значения
+            if len(mapping) == 0:
+                errors.append("Не настроен ни один плейсхолдер")
+            
+            # Проверяем уникальность столбцов (только для столбцов, не для свободного ввода)
+            column_mappings = {k: v for k, v in mapping.items() if v in df.columns}
+            if len(column_mappings.values()) != len(set(column_mappings.values())):
+                warnings.append("Некоторые столбцы используются для нескольких плейсхолдеров")
             
             return {
-                'validation': {
-                    'valid': len(errors) == 0,
-                    'errors': errors,
-                    'warnings': warnings,
-                    'mapped_columns': mapped_columns
-                }
+                'valid': len(errors) == 0,
+                'errors': errors,
+                'warnings': warnings,
+                'mapped_columns': mapped_columns
             }
             
         except Exception as e:
@@ -152,34 +209,51 @@ class ActService:
                      number_to_text_fields: list = None, currency: str = "рублей") -> str:
         """Генерирует акты на основе шаблона и данных"""
         try:
+            print(f"Начало генерации актов: template_id={template_id}, rows={len(data)}")
+            print(f"Маппинг: {mapping}")
+            print(f"Поля для преобразования чисел: {number_to_text_fields}")
+            
             # Создаем временную папку для актов
             import tempfile
             temp_dir = tempfile.mkdtemp()
+            print(f"Временная папка создана: {temp_dir}")
             
             # Генерируем акты для каждой строки данных
             generated_files = []
             
             for index, row in data.iterrows():
                 try:
+                    print(f"Обрабатываем строку {index + 1}")
+                    
                     # Подготавливаем значения для замены
                     values = {}
-                    for placeholder, column in mapping.items():
-                        value = row[column]
-                        # Преобразуем NaN в пустую строку
-                        if pd.isna(value):
-                            value = ""
-                        
-                        # Проверяем, нужно ли преобразовать число в текст
-                        if number_to_text_fields and column in number_to_text_fields:
-                            try:
-                                # Пытаемся преобразовать в число
-                                numeric_value = float(value) if value else 0
-                                values[placeholder] = format_number_with_text(numeric_value, currency)
-                            except (ValueError, TypeError):
-                                # Если не удалось преобразовать в число, оставляем как есть
-                                values[placeholder] = str(value)
+                    for placeholder, column_or_value in mapping.items():
+                        # Проверяем, является ли значение названием столбца или свободным вводом
+                        if column_or_value in data.columns:
+                            # Это столбец из Excel файла
+                            value = row[column_or_value]
+                            
+                            # Проверяем, нужно ли преобразовать число в текст
+                            if number_to_text_fields and column_or_value in number_to_text_fields:
+                                try:
+                                    # Пытаемся преобразовать в число
+                                    numeric_value = float(value) if value else 0
+                                    values[placeholder] = format_number_with_text(numeric_value, currency)
+                                    print(f"Преобразовано число для {placeholder}: {value} -> {values[placeholder]}")
+                                except (ValueError, TypeError):
+                                    # Если не удалось преобразовать в число, форматируем как обычное значение
+                                    values[placeholder] = self.format_value(value)
+                                    print(f"Не удалось преобразовать число для {placeholder}: {value}")
+                            else:
+                                # Форматируем значение с сохранением формата дат
+                                values[placeholder] = self.format_value(value)
+                                print(f"Обычное значение для {placeholder}: {value} -> {values[placeholder]}")
                         else:
-                            values[placeholder] = str(value)
+                            # Это свободный ввод - используем значение как есть
+                            values[placeholder] = str(column_or_value)
+                            print(f"Свободный ввод для {placeholder}: {column_or_value}")
+                    
+                    print(f"Подготовленные значения: {values}")
                     
                     # Генерируем документ
                     output_path = self.template_service.generate_document(
@@ -187,6 +261,8 @@ class ActService:
                         values=values,
                         output_format=output_format
                     )
+                    
+                    print(f"Документ сгенерирован: {output_path}")
                     
                     # Формируем название файла
                     if filename_template:

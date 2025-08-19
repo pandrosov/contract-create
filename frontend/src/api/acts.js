@@ -19,6 +19,20 @@ const actsApi = {
     return response;
   },
 
+  // Получение уникальных значений столбцов
+  getColumnValues: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await axios.post(`${API_URL}/acts/get-column-values`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      withCredentials: true,
+    });
+    return response;
+  },
+
   // Анализ качества данных
   analyzeDataQuality: async (file) => {
     const formData = new FormData();
@@ -80,6 +94,7 @@ const actsApi = {
 export default actsApi;
 export const { 
   analyzeExcelFile, 
+  getColumnValues,
   analyzeDataQuality, 
   validateMapping, 
   getTemplatePlaceholders, 

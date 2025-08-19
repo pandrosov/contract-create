@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { uploadTemplate, getTemplates } from '../api/templates';
-import { generateActs, analyzeExcelFile, analyzeDataQuality, validateMapping, getTemplatePlaceholders } from '../api/acts';
+import { generateActs, analyzeExcelFile, analyzeDataQuality, validateMapping, getTemplatePlaceholders, getColumnValues } from '../api/acts';
 import TemplateSelectorModal from '../components/TemplateSelectorModal';
 import Loader from '../components/Loader';
 import '../styles/global.css';
@@ -16,6 +16,7 @@ const ActGenerationPage = () => {
   const [columnValues, setColumnValues] = useState({});
   const [placeholders, setPlaceholders] = useState([]);
   const [mapping, setMapping] = useState({});
+  const [freeInputMapping, setFreeInputMapping] = useState({}); // Новое состояние для свободного ввода
   const [outputFormat, setOutputFormat] = useState('docx');
   const [outputFilename, setOutputFilename] = useState('');
   const [actFilenameTemplate, setActFilenameTemplate] = useState('');
@@ -58,33 +59,25 @@ const ActGenerationPage = () => {
     const file = event.target.files[0];
     if (file) {
       setExcelFile(file);
+      setIsLoading(true);
+      
       try {
-        // Анализируем структуру файла
+        // Анализируем структуру Excel файла
         const response = await analyzeExcelFile(file);
-        console.log('Excel analysis response:', response.data);
         
         if (response.data && response.data.columns) {
           setAvailableColumns(response.data.columns);
           
-          // Получаем уникальные значения для каждого столбца
-          const values = {};
-          if (response.data.sample_data && Array.isArray(response.data.sample_data)) {
-            response.data.sample_data.forEach(row => {
-              Object.keys(row).forEach(col => {
-                if (!values[col]) values[col] = new Set();
-                if (row[col] !== null && row[col] !== undefined) {
-                  values[col].add(row[col]);
-                }
-              });
-            });
-          }
+          // Получаем уникальные значения для всех столбцов
+          const columnValuesResponse = await getColumnValues(file);
           
-          // Преобразуем в массив для каждого столбца
-          const columnValuesObj = {};
-          Object.keys(values).forEach(col => {
-            columnValuesObj[col] = Array.from(values[col]).sort();
-          });
-          setColumnValues(columnValuesObj);
+          if (columnValuesResponse.data && columnValuesResponse.data.column_values) {
+            setColumnValues(columnValuesResponse.data.column_values);
+          } else {
+            console.error('Invalid column values response:', columnValuesResponse.data);
+            showMessage('Ошибка получения значений столбцов', 'error');
+            return;
+          }
         } else {
           console.error('Invalid Excel analysis response:', response.data);
           showMessage('Ошибка анализа структуры Excel файла', 'error');
@@ -108,6 +101,8 @@ const ActGenerationPage = () => {
       } catch (error) {
         console.error('Error analyzing Excel file:', error);
         showMessage('Ошибка анализа Excel файла', 'error');
+      } finally {
+        setIsLoading(false);
       }
     }
   };
@@ -136,9 +131,47 @@ const ActGenerationPage = () => {
     };
     setMapping(newMapping);
     
+    // Очищаем свободный ввод для этого плейсхолдера
+    const newFreeInputMapping = { ...freeInputMapping };
+    delete newFreeInputMapping[placeholder];
+    setFreeInputMapping(newFreeInputMapping);
+    
     // Валидируем маппинг, если есть файл
     if (excelFile && Object.keys(newMapping).length > 0) {
       validateMappingWithData(newMapping);
+    }
+  };
+
+  const handleFreeInputChange = (placeholder, value) => {
+    const newFreeInputMapping = {
+      ...freeInputMapping,
+      [placeholder]: value
+    };
+    setFreeInputMapping(newFreeInputMapping);
+    
+    // Очищаем маппинг столбца для этого плейсхолдера
+    const newMapping = { ...mapping };
+    delete newMapping[placeholder];
+    setMapping(newMapping);
+  };
+
+  const handleFreeInputToggle = (placeholder, isFreeInput) => {
+    if (isFreeInput) {
+      // Переключаемся на свободный ввод
+      const newMapping = { ...mapping };
+      delete newMapping[placeholder];
+      setMapping(newMapping);
+      
+      // Инициализируем свободный ввод пустым значением
+      setFreeInputMapping({
+        ...freeInputMapping,
+        [placeholder]: ''
+      });
+    } else {
+      // Переключаемся на выбор столбца
+      const newFreeInputMapping = { ...freeInputMapping };
+      delete newFreeInputMapping[placeholder];
+      setFreeInputMapping(newFreeInputMapping);
     }
   };
 
@@ -171,8 +204,12 @@ const ActGenerationPage = () => {
       return;
     }
 
-    if (placeholders.length > 0 && Object.keys(mapping).length === 0) {
-      showMessage('Пожалуйста, настройте маппинг плейсхолдеров', 'error');
+    // Проверяем, что есть маппинг или свободный ввод для плейсхолдеров
+    const hasMapping = Object.keys(mapping).length > 0;
+    const hasFreeInput = Object.keys(freeInputMapping).length > 0;
+    
+    if (placeholders.length > 0 && !hasMapping && !hasFreeInput) {
+      showMessage('Пожалуйста, настройте маппинг плейсхолдеров или введите значения', 'error');
       return;
     }
 
@@ -188,7 +225,15 @@ const ActGenerationPage = () => {
         formData.append(`filter_value_${index}`, filter.value);
       });
       
-      formData.append('mapping', JSON.stringify(mapping));
+      // Объединяем маппинг и свободный ввод
+      const combinedMapping = { ...mapping };
+      Object.keys(freeInputMapping).forEach(placeholder => {
+        if (freeInputMapping[placeholder]) {
+          combinedMapping[placeholder] = freeInputMapping[placeholder];
+        }
+      });
+      
+      formData.append('mapping', JSON.stringify(combinedMapping));
       formData.append('output_format', outputFormat);
       if (outputFilename) {
         formData.append('output_filename', outputFilename);
@@ -506,30 +551,58 @@ const ActGenerationPage = () => {
           {placeholders && placeholders.length > 0 && availableColumns && availableColumns.length > 0 && (
             <div className="form-section">
               <h3>4. Настройка маппинга</h3>
-              <p>Сопоставьте плейсхолдеры шаблона со столбцами таблицы:</p>
+              <p>Сопоставьте плейсхолдеры шаблона со столбцами таблицы или введите произвольные значения:</p>
               <div className="mapping-container">
-                {placeholders && placeholders.map(placeholder => (
-                  <div key={placeholder} className="mapping-row">
-                    <div className="placeholder">
-                      <strong>{placeholder}</strong>
+                {placeholders && placeholders.map(placeholder => {
+                  const isFreeInput = freeInputMapping.hasOwnProperty(placeholder);
+                  const hasColumnMapping = mapping.hasOwnProperty(placeholder);
+                  
+                  return (
+                    <div key={placeholder} className="mapping-row">
+                      <div className="placeholder">
+                        <strong>{placeholder}</strong>
+                      </div>
+                      <div className="mapping-arrow">→</div>
+                      
+                      {/* Галочка для переключения режима */}
+                      <div className="free-input-toggle">
+                        <label className="checkbox-option">
+                          <input
+                            type="checkbox"
+                            checked={isFreeInput}
+                            onChange={(e) => handleFreeInputToggle(placeholder, e.target.checked)}
+                          />
+                          <span>Свободный ввод</span>
+                        </label>
+                      </div>
+                      
+                      <div className="column-select">
+                        {isFreeInput ? (
+                          <input
+                            type="text"
+                            value={freeInputMapping[placeholder] || ''}
+                            onChange={(e) => handleFreeInputChange(placeholder, e.target.value)}
+                            placeholder="Введите значение..."
+                            className="form-control"
+                          />
+                        ) : (
+                          <select
+                            value={mapping[placeholder] || ''}
+                            onChange={(e) => handleMappingChange(placeholder, e.target.value)}
+                            className="form-control"
+                          >
+                            <option value="">Выберите столбец...</option>
+                            {availableColumns && availableColumns.map(column => (
+                              <option key={column} value={column}>
+                                {column}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
                     </div>
-                    <div className="mapping-arrow">→</div>
-                    <div className="column-select">
-                      <select
-                        value={mapping[placeholder] || ''}
-                        onChange={(e) => handleMappingChange(placeholder, e.target.value)}
-                        className="form-control"
-                      >
-                        <option value="">Выберите столбец...</option>
-                        {availableColumns && availableColumns.map(column => (
-                          <option key={column} value={column}>
-                            {column}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -616,7 +689,7 @@ const ActGenerationPage = () => {
               <div className="form-group">
                 <label>Выберите поля для преобразования чисел в текст:</label>
                 <small className="form-help">
-                  Числовые значения в выбранных полях будут преобразованы в текст с расшифровкой в скобках (например: 1574 → "тысяча пятьсот семьдесят четыре (1574) белорусских рубля 00 копеек")
+                  Числовые значения в выбранных полях будут преобразованы в текст с расшифровкой в скобках (например: 1574,56 → "1574,56 (Одна тысяча пятьсот семьдесят четыре белорусских рубля 56 копеек)")
                 </small>
                 <div className="number-to-text-fields">
                   {availableColumns.map(column => (

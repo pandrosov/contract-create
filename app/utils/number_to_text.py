@@ -169,21 +169,41 @@ def get_currency_declension(currency, number):
 def format_number_with_text(number, currency="белорусских рубля"):
     """
     Форматирует число с расшифровкой в скобках.
-    Например: 1574 -> "одна тысяча пятьсот семьдесят четыре (1574) белорусских рубля 00 копеек"
+    Например: 1234.56 -> "1234,56 (Одна тысяча двести тридцать четыре белорусских рубля 56 копеек)"
     """
     if not isinstance(number, (int, float)) or number < 0:
         return str(number)
     
-    # Получаем текстовую расшифровку
-    text_value = number_to_text(number, currency)
+    # Разделяем на рубли и копейки
+    rubles = int(number)
+    kopecks = int((number - rubles) * 100)
     
-    # Форматируем число
+    # Форматируем исходное число
     if isinstance(number, int):
         formatted_number = str(number)
     else:
-        formatted_number = f"{number:.2f}".rstrip('0').rstrip('.')
+        # Заменяем точку на запятую для русского формата
+        formatted_number = f"{number:.2f}".replace('.', ',')
+    
+    # Получаем текстовую расшифровку для рублей
+    rubles_text = number_to_text(rubles, currency)
     
     # Получаем правильное склонение валюты
-    declensed_currency = get_currency_declension(currency, int(number))
+    declensed_currency = get_currency_declension(currency, rubles)
     
-    return f"{text_value} ({formatted_number}) {declensed_currency} 00 копеек" 
+    # Формируем копейки
+    if kopecks == 0:
+        kopecks_text = "00 копеек"
+    else:
+        # Получаем правильное склонение копеек
+        if kopecks % 10 == 1 and kopecks % 100 != 11:
+            kopecks_text = f"{kopecks} копейка"
+        elif kopecks % 10 in [2, 3, 4] and kopecks % 100 not in [12, 13, 14]:
+            kopecks_text = f"{kopecks} копейки"
+        else:
+            kopecks_text = f"{kopecks} копеек"
+    
+    # Формируем итоговую строку, используя переданную валюту
+    result = f"{formatted_number} ({rubles_text} {declensed_currency} {kopecks_text})"
+    
+    return result 
