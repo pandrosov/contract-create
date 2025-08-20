@@ -1,12 +1,8 @@
-import axios from 'axios';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+import api from './axiosConfig';
 
 export async function getSettings() {
   try {
-    const res = await axios.get(`${API_URL}/settings/`, {
-      withCredentials: true,
-    });
+    const res = await api.get('/settings/');
     return res;
   } catch (error) {
     console.error('Error fetching settings:', error);
@@ -16,9 +12,7 @@ export async function getSettings() {
 
 export async function getSetting(key) {
   try {
-    const res = await axios.get(`${API_URL}/settings/${key}`, {
-      withCredentials: true,
-    });
+    const res = await api.get(`/settings/${key}`);
     return res;
   } catch (error) {
     console.error('Error fetching setting:', error);
@@ -28,9 +22,7 @@ export async function getSetting(key) {
 
 export async function createSetting(setting) {
   try {
-    const res = await axios.post(`${API_URL}/settings/`, setting, {
-      withCredentials: true,
-    });
+    const res = await api.post('/settings/', setting);
     return res;
   } catch (error) {
     console.error('Error creating setting:', error);
@@ -40,9 +32,7 @@ export async function createSetting(setting) {
 
 export async function updateSetting(key, setting) {
   try {
-    const res = await axios.put(`${API_URL}/settings/${key}`, setting, {
-      withCredentials: true,
-    });
+    const res = await api.put(`/settings/${key}`, setting);
     return res;
   } catch (error) {
     console.error('Error updating setting:', error);
@@ -52,9 +42,7 @@ export async function updateSetting(key, setting) {
 
 export async function deleteSetting(key) {
   try {
-    const res = await axios.delete(`${API_URL}/settings/${key}`, {
-      withCredentials: true,
-    });
+    const res = await api.delete(`/settings/${key}`);
     return res;
   } catch (error) {
     console.error('Error deleting setting:', error);

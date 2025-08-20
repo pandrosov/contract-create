@@ -97,7 +97,7 @@ const TemplateSelectorModal = ({ isOpen, onClose, onSelect, selectedTemplateId }
                               <span className="template-icon">📄</span>
                               <span className="template-name">{template.filename}</span>
                               <span className="template-date">
-                                {new Date(template.uploaded_at).toLocaleDateString()}
+                                {template.uploaded_at || 'Не указано'}
                               </span>
                             </div>
                           ))

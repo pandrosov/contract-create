@@ -202,7 +202,7 @@ const TemplatesPage = () => {
                     <td>
                       {folders.find(f => f.id === template.folder_id)?.name || 'Неизвестная папка'}
                     </td>
-                    <td>{formatDate(template.created_at)}</td>
+                    <td>{template.uploaded_at || 'Не указано'}</td>
                     <td>
                       <div className="table-actions">
                         <button
@@ -215,7 +215,7 @@ const TemplatesPage = () => {
                         </button>
                         <button
                           className="btn btn-secondary btn-sm"
-                          onClick={() => window.open(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/templates/${template.id}/download`, '_blank')}
+                          onClick={() => window.open(`/api/templates/${template.id}/download`, '_blank')}
                         >
                           <span>⬇️</span>
                           Скачать
