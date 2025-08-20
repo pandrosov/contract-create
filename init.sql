@@ -84,10 +84,10 @@ CREATE INDEX IF NOT EXISTS idx_placeholder_descriptions_template_id ON placehold
 
 -- Вставка начальных данных
 
--- Создание администратора (пароль: admin)
-INSERT INTO users (username, email, password_hash, is_active, is_admin) 
-VALUES ('admin', 'admin@example.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj3ZxQQxq3Hy', true, true)
-ON CONFLICT (username) DO NOTHING;
+            -- Создание администратора (пароль: admin)
+            INSERT INTO users (username, email, password_hash, is_active, is_admin) 
+            VALUES ('admin', 'admin@example.com', '$2b$12$ycxhvzKbW4rzOVqf9nfGzukPfEZljzizqRgcX6FF2.llDU4yMHmf2', true, true)
+            ON CONFLICT (username) DO NOTHING;
 
 -- Создание дефолтных папок
 INSERT INTO folders (name, path, created_by) VALUES 
