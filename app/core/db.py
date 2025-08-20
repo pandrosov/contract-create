@@ -6,9 +6,6 @@ engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread":
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# Импортируем все модели для правильной инициализации
-from app.models import User, Folder, Template, Permission, ActionLog, Settings, PlaceholderDescription, Log
-
 def get_db():
     db = SessionLocal()
     try:
