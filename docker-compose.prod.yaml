@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: contract_db
       POSTGRES_USER: contract_user
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secure_password_123}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your_secure_database_password_here}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -25,7 +25,7 @@ services:
       dockerfile: app/Dockerfile
     container_name: contract-backend
     environment:
-      - DATABASE_URL=postgresql://contract_user:${POSTGRES_PASSWORD:-secure_password_123}@postgres:5432/contract_db
+      - DATABASE_URL=postgresql://contract_user:${POSTGRES_PASSWORD:-your_secure_database_password_here}@postgres:5432/contract_db
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
       - ALGORITHM=HS256
       - ACCESS_TOKEN_EXPIRE_MINUTES=30
