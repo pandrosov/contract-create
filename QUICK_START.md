@@ -14,7 +14,18 @@ ssh-copy-id root@185.179.83.236
 ssh root@185.179.83.236 "echo 'SSH доступ настроен'"
 ```
 
-### 2. Запуск деплоя
+### 2. Подготовка Git репозитория
+```bash
+# Убедитесь, что все изменения закоммичены
+git status
+git add .
+git commit -m "Prepare for deployment"
+
+# Отправьте изменения в удаленный репозиторий
+git push origin master
+```
+
+### 3. Запуск деплоя
 ```bash
 # Сделать скрипты исполняемыми
 chmod +x deploy.sh server-manage.sh health-check.sh
@@ -23,7 +34,7 @@ chmod +x deploy.sh server-manage.sh health-check.sh
 ./deploy.sh
 ```
 
-### 3. Проверка работы
+### 4. Проверка работы
 ```bash
 # Проверка здоровья системы
 ./health-check.sh
@@ -56,3 +67,5 @@ chmod +x deploy.sh server-manage.sh health-check.sh
 ---
 
 **Время выполнения деплоя: ~10-15 минут** ⏱️
+
+**Примечание**: Деплой использует Git репозиторий для копирования файлов. Убедитесь, что все изменения закоммичены и отправлены в удаленный репозиторий.

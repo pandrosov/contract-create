@@ -57,9 +57,10 @@ class ActionLog(Base):
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
     details = Column(Text)
 
-# Настройка SQLite (можно заменить на PostgreSQL)
-DATABASE_URL = 'sqlite:///./service.db'
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+# Настройка PostgreSQL для продакшена
+import os
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://contract_user:secure_password_123@postgres:5432/contract_db")
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Для Alembic и инициализации

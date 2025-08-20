@@ -2,6 +2,11 @@
 
 # Скрипт деплоя для contract.alnilam.by
 # Использование: ./deploy.sh [production|staging]
+#
+# Логика деплоя:
+# 1. Если есть Git репозиторий - используем Git (рекомендуется)
+# 2. Если нет Git - fallback на scp с архивом
+# 3. Автоматическая установка Docker, firewall, SSL
 
 set -e
 
@@ -35,37 +40,14 @@ fi
 
 echo -e "${GREEN}✅ Подключение к серверу успешно${NC}"
 
-# Проверяем наличие rsync на локальной машине
-echo -e "${YELLOW}Проверяем наличие rsync...${NC}"
-if ! command -v rsync &> /dev/null; then
-    echo -e "${YELLOW}rsync не найден, устанавливаем...${NC}"
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS
-        if command -v brew &> /dev/null; then
-            echo -e "${YELLOW}Устанавливаем rsync через Homebrew...${NC}"
-            brew install rsync
-        else
-            echo -e "${YELLOW}Homebrew не найден, устанавливаем...${NC}"
-            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-            brew install rsync
-        fi
-    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        # Linux
-        echo -e "${YELLOW}Устанавливаем rsync через apt...${NC}"
-        sudo apt-get update && sudo apt-get install -y rsync
-    else
-        echo -e "${RED}❌ Установите rsync вручную для вашей ОС${NC}"
-        exit 1
-    fi
-fi
-
-# Проверяем, что rsync установлен
-if command -v rsync &> /dev/null; then
-    echo -e "${GREEN}✅ rsync готов к использованию${NC}"
-else
-    echo -e "${RED}❌ Не удалось установить rsync${NC}"
+# Проверяем Git
+echo -e "${YELLOW}Проверяем Git...${NC}"
+if ! command -v git &> /dev/null; then
+    echo -e "${RED}❌ Git не найден. Установите Git для деплоя${NC}"
     exit 1
 fi
+
+echo -e "${GREEN}✅ Git готов к использованию${NC}"
 
 # Создаем директории на сервере
 echo -e "${YELLOW}Создаем структуру директорий на сервере...${NC}"
@@ -84,24 +66,31 @@ echo -e "${GREEN}✅ Директории созданы${NC}"
 echo -e "${YELLOW}Устанавливаем необходимые инструменты...${NC}"
 ssh -i ${SSH_KEY} ${SERVER_USER}@${SERVER_IP} << 'EOF'
 apt update
-apt install -y rsync curl wget git
-echo "Инструменты установлены"
+if apt install -y curl wget git ufw iptables-persistent net-tools iproute2; then
+    echo "Инструменты установлены"
+else
+    echo "Ошибка установки, пробуем без ufw..."
+    apt install -y curl wget git net-tools iproute2
+    echo "Базовые инструменты установлены"
+fi
 EOF
 
 echo -e "${GREEN}✅ Инструменты установлены${NC}"
 
-# Проверяем, что rsync установлен на сервере
-echo -e "${YELLOW}Проверяем установку rsync на сервере...${NC}"
+# Проверяем установку всех инструментов
+echo -e "${YELLOW}Проверяем установку инструментов...${NC}"
 ssh -i ${SSH_KEY} ${SERVER_USER}@${SERVER_IP} << 'EOF'
-if command -v rsync &> /dev/null; then
-    echo "rsync установлен успешно"
-else
-    echo "Ошибка: rsync не установлен"
-    exit 1
-fi
+echo "Проверяем наличие инструментов:"
+for tool in curl wget git netstat ss iptables ufw; do
+    if command -v $tool &> /dev/null; then
+        echo "✅ $tool установлен"
+    else
+        echo "❌ $tool не найден"
+    fi
+done
 EOF
 
-echo -e "${GREEN}✅ rsync готов к использованию${NC}"
+echo -e "${GREEN}✅ Инструменты проверены${NC}"
 
 # Клонируем/обновляем Git репозиторий на сервере
 echo -e "${YELLOW}Настраиваем Git репозиторий на сервере...${NC}"
@@ -122,6 +111,93 @@ if [ -d ".git" ]; then
     else
         echo -e "${GREEN}✅ Все изменения закоммичены${NC}"
     fi
+    
+    # Проверяем, что есть удаленный репозиторий
+    if ! git remote get-url origin &> /dev/null; then
+        echo -e "${RED}❌ Удаленный репозиторий не настроен${NC}"
+        echo -e "${YELLOW}Добавьте remote origin: git remote add origin <url>${NC}"
+        exit 1
+    fi
+    
+    # Проверяем, что есть коммиты
+    if ! git rev-parse HEAD &> /dev/null; then
+        echo -e "${RED}❌ Нет коммитов в репозитории${NC}"
+        echo -e "${YELLOW}Сделайте первый коммит: git add . && git commit -m 'Initial commit'${NC}"
+        exit 1
+    fi
+    
+    # Проверяем, что есть удаленная ветка
+    CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "master")
+    if ! git ls-remote --heads origin ${CURRENT_BRANCH} | grep -q ${CURRENT_BRANCH}; then
+        echo -e "${YELLOW}⚠️  Ветка ${CURRENT_BRANCH} не существует в удаленном репозитории${NC}"
+        echo -e "${YELLOW}Отправьте ветку: git push -u origin ${CURRENT_BRANCH}${NC}"
+        read -p "Продолжить деплой? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo -e "${YELLOW}Деплой отменен. Сначала отправьте ветку.${NC}"
+            exit 0
+        fi
+    fi
+    
+    # Показываем информацию о репозитории
+    echo -e "${GREEN}✅ Git репозиторий готов к деплою${NC}"
+    echo -e "${BLUE}📊 Информация о репозитории:${NC}"
+    echo -e "  Ветка: ${CURRENT_BRANCH}"
+    echo -e "  Последний коммит: $(git log -1 --oneline)"
+    echo -e "  Удаленный: $(git remote get-url origin)"
+    
+    # Проверяем, что ветка актуальна
+    if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/${CURRENT_BRANCH} 2>/dev/null)" ]; then
+        echo -e "${YELLOW}⚠️  Локальная ветка не синхронизирована с удаленной${NC}"
+        echo -e "${YELLOW}Рекомендуется: git pull origin ${CURRENT_BRANCH}${NC}"
+        read -p "Продолжить деплой? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo -e "${YELLOW}Деплой отменен. Сначала синхронизируйте ветку.${NC}"
+            exit 0
+        fi
+    fi
+    
+    # Проверяем, что есть теги
+    if git tag | wc -l | grep -q "0"; then
+        echo -e "${YELLOW}⚠️  Нет тегов в репозитории${NC}"
+        echo -e "${YELLOW}Рекомендуется создать тег для версии${NC}"
+    else
+        echo -e "${GREEN}✅ Теги найдены: $(git tag | tail -3 | tr '\n' ' ')"
+    fi
+    
+    # Показываем статистику репозитория
+    echo -e "${BLUE}📈 Статистика репозитория:${NC}"
+    echo -e "  Всего коммитов: $(git rev-list --count HEAD)"
+    echo -e "  Размер: $(du -sh .git | cut -f1)"
+    echo -e "  Последние изменения: $(git log --since="1 week ago" --oneline | wc -l | tr -d ' ') за неделю"
+    
+    # Показываем последние коммиты
+    echo -e "${BLUE}📝 Последние коммиты:${NC}"
+    git log --oneline -5
+    
+    # Показываем информацию о ветках
+    echo -e "${BLUE}🌿 Ветки:${NC}"
+    git branch -r | head -5
+    
+    # Показываем информацию о файлах
+    echo -e "${BLUE}📁 Файлы в репозитории:${NC}"
+    echo -e "  Всего файлов: $(git ls-files | wc -l | tr -d ' ')"
+    echo -e "  Размер кода: $(git ls-files | xargs du -ch 2>/dev/null | tail -1 | cut -f1)"
+    
+    # Показываем информацию о конфигурации
+    echo -e "${BLUE}⚙️  Конфигурация Git:${NC}"
+    echo -e "  User: $(git config user.name 2>/dev/null || echo 'Не настроен')"
+    echo -e "  Email: $(git config user.email 2>/dev/null || echo 'Не настроен')"
+    echo -e "  Editor: $(git config core.editor 2>/dev/null || echo 'По умолчанию')"
+    
+    # Показываем информацию о последнем деплое
+    echo -e "${BLUE}🚀 Последний деплой:${NC}"
+    if [ -f ".deploy-info" ]; then
+        echo -e "  $(cat .deploy-info)"
+    else
+        echo -e "  Информация о деплое не найдена"
+    fi
 fi
 
 # Получаем URL текущего репозитория
@@ -129,28 +205,13 @@ GIT_REMOTE_URL=$(git remote get-url origin 2>/dev/null || echo "")
 
 if [ -z "$GIT_REMOTE_URL" ]; then
     echo -e "${YELLOW}Git репозиторий не найден, используем прямое копирование...${NC}"
-    # Fallback на rsync/scp если это не git репозиторий
-    if command -v rsync &> /dev/null; then
-        echo -e "${YELLOW}Используем rsync для копирования...${NC}"
-        if rsync -avz -e "ssh -i ${SSH_KEY}" --exclude='.git' --exclude='node_modules' --exclude='__pycache__' --exclude='.DS_Store' \
-            ./ ${SERVER_USER}@${SERVER_IP}:/opt/contract-app/; then
-            echo -e "${GREEN}✅ Файлы скопированы через rsync${NC}"
-        else
-            echo -e "${YELLOW}rsync не удался, используем scp...${NC}"
-            tar -czf /tmp/app-backup.tar.gz --exclude='.git' --exclude='node_modules' --exclude='__pycache__' --exclude='.DS_Store' .
-            scp -i ${SSH_KEY} /tmp/app-backup.tar.gz ${SERVER_USER}@${SERVER_IP}:/opt/contract-app/
-            ssh -i ${SSH_KEY} ${SERVER_USER}@${SERVER_IP} "cd /opt/contract-app && tar -xzf app-backup.tar.gz && rm app-backup.tar.gz"
-            rm /tmp/app-backup.tar.gz
-            echo -e "${GREEN}✅ Файлы скопированы через scp${NC}"
-        fi
-    else
-        echo -e "${YELLOW}rsync не найден, используем scp...${NC}"
-        tar -czf /tmp/app-backup.tar.gz --exclude='.git' --exclude='node_modules' --exclude='__pycache__' --exclude='.DS_Store' .
-        scp -i ${SSH_KEY} /tmp/app-backup.tar.gz ${SERVER_USER}@${SERVER_IP}:/opt/contract-app/
-        ssh -i ${SSH_KEY} ${SERVER_USER}@${SERVER_IP} "cd /opt/contract-app && tar -xzf app-backup.tar.gz && rm app-backup.tar.gz"
-        rm /tmp/app-backup.tar.gz
-        echo -e "${GREEN}✅ Файлы скопированы через scp${NC}"
-    fi
+    # Fallback на scp если это не git репозиторий
+    echo -e "${YELLOW}Создаем архив и копируем через scp...${NC}"
+    tar -czf /tmp/app-backup.tar.gz --exclude='.git' --exclude='node_modules' --exclude='__pycache__' --exclude='.DS_Store' .
+    scp -i ${SSH_KEY} /tmp/app-backup.tar.gz ${SERVER_USER}@${SERVER_IP}:/opt/contract-app/
+    ssh -i ${SSH_KEY} ${SERVER_USER}@${SERVER_IP} "cd /opt/contract-app && tar -xzf app-backup.tar.gz && rm app-backup.tar.gz"
+    rm /tmp/app-backup.tar.gz
+    echo -e "${GREEN}✅ Файлы скопированы через scp${NC}"
 else
     echo -e "${GREEN}✅ Git репозиторий найден: ${GIT_REMOTE_URL}${NC}"
     
@@ -249,17 +310,100 @@ echo -e "${GREEN}✅ Docker установлен${NC}"
 # Настраиваем firewall
 echo -e "${YELLOW}Настраиваем firewall...${NC}"
 ssh -i ${SSH_KEY} ${SERVER_USER}@${SERVER_IP} << 'EOF'
-ufw --force enable
-ufw default deny incoming
-ufw default allow outgoing
-ufw allow ssh
-ufw allow 80
-ufw allow 443
-ufw allow 8000
-ufw --force reload
+# Устанавливаем ufw если его нет
+if ! command -v ufw &> /dev/null; then
+    echo "Устанавливаем ufw..."
+    apt update
+    apt install -y ufw
+fi
+
+# Пробуем настроить ufw
+if command -v ufw &> /dev/null; then
+    echo "Настраиваем ufw..."
+    ufw --force enable
+    ufw default deny incoming
+    ufw default allow outgoing
+    ufw allow ssh
+    ufw allow 80
+    ufw allow 443
+    ufw allow 8000
+    ufw --force reload
+    echo "ufw настроен"
+else
+    echo "ufw не установлен, используем iptables..."
+    # Альтернативная настройка через iptables
+    iptables -F
+    iptables -X
+    iptables -t nat -F
+    iptables -t nat -X
+    iptables -t mangle -F
+    iptables -t mangle -X
+    
+    # Разрешаем localhost
+    iptables -A INPUT -i lo -j ACCEPT
+    
+    # Разрешаем установленные соединения
+    iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+    
+    # Разрешаем SSH
+    iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+    
+    # Разрешаем HTTP и HTTPS
+    iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+    iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+    
+    # Разрешаем порт приложения
+    iptables -A INPUT -p tcp --dport 8000 -j ACCEPT
+    
+    # Блокируем все остальное
+    iptables -A INPUT -j DROP
+    
+    # Разрешаем исходящие соединения
+    iptables -A OUTPUT -j ACCEPT
+    
+    # Создаем директорию для правил если её нет
+    mkdir -p /etc/iptables
+    
+    # Сохраняем правила
+    iptables-save > /etc/iptables/rules.v4
+    echo "iptables настроен"
+fi
+
+echo "Firewall настроен"
 EOF
 
 echo -e "${GREEN}✅ Firewall настроен${NC}"
+
+# Проверяем статус firewall
+echo -e "${YELLOW}Проверяем статус firewall...${NC}"
+ssh -i ${SSH_KEY} ${SERVER_USER}@${SERVER_IP} << 'EOF'
+echo "Статус firewall:"
+if command -v ufw &> /dev/null; then
+    ufw status
+else
+    echo "iptables правила:"
+    iptables -L -n
+fi
+EOF
+
+echo -e "${GREEN}✅ Firewall проверен${NC}"
+
+# Проверяем открытые порты
+echo -e "${YELLOW}Проверяем открытые порты...${NC}"
+ssh -i ${SSH_KEY} ${SERVER_USER}@${SERVER_IP} << 'EOF'
+echo "Проверяем основные порты:"
+for port in 22 80 443 8000; do
+    if netstat -tlnp 2>/dev/null | grep ":$port " > /dev/null; then
+        echo "✅ Порт $port открыт"
+    elif ss -tlnp 2>/dev/null | grep ":$port " > /dev/null; then
+        echo "✅ Порт $port открыт (ss)"
+    else
+        echo "❌ Порт $port закрыт"
+    fi
+done
+EOF
+
+echo -e "${GREEN}✅ Порты проверены${NC}"
 
 # Создаем SSL сертификаты (Let's Encrypt)
 echo -e "${YELLOW}Настраиваем SSL сертификаты...${NC}"
