@@ -10,11 +10,22 @@ import os
 # Добавляем корневую директорию в path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-# Импортируем все модели для правильной инициализации
-from app.models import user, folder, template
+# Импортируем только необходимые модули
 from app.core.security import get_password_hash
-from app.models.user import User
-from app.core.db import SessionLocal
+from app.core.db import SessionLocal, Base
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
+import datetime
+
+# Определяем модель User локально, чтобы избежать проблем с relationships
+class User(Base):
+    __tablename__ = 'users'
+    id = Column(Integer, primary_key=True)
+    username = Column(String, unique=True, nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    is_active = Column(Boolean, default=False)
+    is_admin = Column(Boolean, default=False)
+    date_joined = Column(DateTime, default=datetime.datetime.utcnow)
 
 def change_admin_password(new_password: str):
     """Изменяет пароль администратора"""
