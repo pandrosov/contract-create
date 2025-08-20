@@ -29,7 +29,7 @@ def change_admin_password(new_password: str):
         hashed_password = get_password_hash(new_password)
         
         # Обновляем пароль
-        admin_user.hashed_password = hashed_password
+        admin_user.password_hash = hashed_password
         db.commit()
         
         print(f"✅ Пароль администратора успешно изменен!")
@@ -46,7 +46,7 @@ def change_admin_password(new_password: str):
 
 if __name__ == "__main__":
     # Новый пароль (измените на желаемый)
-    NEW_PASSWORD = "Contract2024!"
+    NEW_PASSWORD = "admin"
     
     print("🔐 Изменение пароля администратора...")
     print(f"Новый пароль: {NEW_PASSWORD}")
