@@ -36,7 +36,8 @@ CREATE TABLE IF NOT EXISTS permissions (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id),
     folder_id INTEGER REFERENCES folders(id),
-    level VARCHAR NOT NULL -- view, upload, delete, manage
+    level VARCHAR NOT NULL, -- view, upload, delete, manage
+    UNIQUE(user_id, folder_id)
 );
 
 -- Создание таблицы логов действий
