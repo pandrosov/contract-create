@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS settings (
 -- Создание таблицы описаний плейсхолдеров
 CREATE TABLE IF NOT EXISTS placeholder_descriptions (
     id SERIAL PRIMARY KEY,
-    name VARCHAR NOT NULL,
+    name VARCHAR UNIQUE NOT NULL,
     description TEXT NOT NULL,
     example_value TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
