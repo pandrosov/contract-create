@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime
 
 class LogBase(BaseModel):
     user_id: int
@@ -13,5 +14,5 @@ class LogCreate(LogBase):
 
 class LogOut(LogBase):
     id: int
-    timestamp: str
+    timestamp: datetime
     model_config = {"from_attributes": True} 

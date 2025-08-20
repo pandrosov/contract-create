@@ -12,8 +12,18 @@ from app.services.template_service import TemplateService
 from app.services.placeholder_service import PlaceholderService
 from app.api.auth import get_current_user
 from app.models.user import User
+import datetime
 
 router = APIRouter(prefix="/templates", tags=["templates"])
+
+def format_datetime(dt):
+    """Форматирует дату в читаемый формат для фронтенда"""
+    if dt is None:
+        return None
+    if isinstance(dt, str):
+        return dt
+    # Форматируем в формат ДД.ММ.ГГГГ ЧЧ:ММ
+    return dt.strftime("%d.%m.%Y %H:%M")
 
 @router.post("/upload")
 async def upload_template(
@@ -41,7 +51,7 @@ async def upload_template(
                 "id": template.id,
                 "filename": template.filename,
                 "folder_id": template.folder_id,
-                "created_at": template.created_at
+                "uploaded_at": format_datetime(template.uploaded_at)
             }
         }
     except Exception as e:
@@ -59,8 +69,8 @@ async def get_templates(db: Session = Depends(get_db)):
                 "id": template.id,
                 "filename": template.filename,
                 "folder_id": template.folder_id,
-                "user_id": template.user_id,
-                "created_at": template.created_at
+                "uploaded_by": template.uploaded_by,
+                "uploaded_at": format_datetime(template.uploaded_at)
             }
             for template in templates
         ]
@@ -78,8 +88,8 @@ async def get_templates_by_folder(folder_id: int, db: Session = Depends(get_db))
                 "id": template.id,
                 "filename": template.filename,
                 "folder_id": template.folder_id,
-                "user_id": template.user_id,
-                "created_at": template.created_at
+                "uploaded_by": template.uploaded_by,
+                "uploaded_at": format_datetime(template.uploaded_at)
             }
             for template in templates
         ]
@@ -98,7 +108,7 @@ async def delete_template(
     if not template:
         raise HTTPException(status_code=404, detail="Шаблон не найден")
     
-    if template.user_id != current_user.id:
+    if template.uploaded_by != current_user.id:
         raise HTTPException(status_code=403, detail="Нет прав для удаления этого шаблона")
     
     success = template_service.delete_template(template_id)

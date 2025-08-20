@@ -56,7 +56,8 @@ CREATE TABLE IF NOT EXISTS settings (
     id SERIAL PRIMARY KEY,
     key VARCHAR UNIQUE NOT NULL,
     value TEXT NOT NULL,
-    description TEXT,
+    description VARCHAR(500),
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -64,10 +65,11 @@ CREATE TABLE IF NOT EXISTS settings (
 -- Создание таблицы описаний плейсхолдеров
 CREATE TABLE IF NOT EXISTS placeholder_descriptions (
     id SERIAL PRIMARY KEY,
-    name VARCHAR UNIQUE NOT NULL,
-    description TEXT NOT NULL,
-    example_value TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    template_id INTEGER REFERENCES templates(id) ON DELETE CASCADE NOT NULL,
+    placeholder_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Создание индексов для улучшения производительности
@@ -78,6 +80,7 @@ CREATE INDEX IF NOT EXISTS idx_templates_folder_id ON templates(folder_id);
 CREATE INDEX IF NOT EXISTS idx_permissions_user_folder ON permissions(user_id, folder_id);
 CREATE INDEX IF NOT EXISTS idx_action_logs_user_id ON action_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_action_logs_timestamp ON action_logs(timestamp);
+CREATE INDEX IF NOT EXISTS idx_placeholder_descriptions_template_id ON placeholder_descriptions(template_id);
 
 -- Вставка начальных данных
 
@@ -111,16 +114,16 @@ INSERT INTO settings (key, value, description) VALUES
 ON CONFLICT (key) DO NOTHING;
 
 -- Создание описаний плейсхолдеров
-INSERT INTO placeholder_descriptions (name, description, example_value) VALUES 
-    ('company_name', 'Название компании', 'ООО "Рога и Копыта"'),
-    ('contract_number', 'Номер договора', 'ДОГ-2024-001'),
-    ('contract_date', 'Дата договора', '20.08.2024'),
-    ('client_name', 'ФИО клиента', 'Иванов Иван Иванович'),
-    ('client_passport', 'Паспортные данные клиента', 'AB1234567'),
-    ('amount', 'Сумма договора', '100000'),
-    ('amount_words', 'Сумма прописью', 'Сто тысяч рублей 00 копеек'),
-    ('address', 'Адрес', 'г. Москва, ул. Примерная, д. 1, кв. 1')
-ON CONFLICT (name) DO NOTHING;
+INSERT INTO placeholder_descriptions (template_id, placeholder_name, description) VALUES 
+    (1, 'company_name', 'Название компании'),
+    (1, 'contract_number', 'Номер договора'),
+    (1, 'contract_date', 'Дата договора'),
+    (1, 'client_name', 'ФИО клиента'),
+    (1, 'client_passport', 'Паспортные данные клиента'),
+    (1, 'amount', 'Сумма договора'),
+    (1, 'amount_words', 'Сумма прописью'),
+    (1, 'address', 'Адрес')
+ON CONFLICT (template_id, placeholder_name) DO NOTHING;
 
 -- Установка прав доступа для администратора
 INSERT INTO permissions (user_id, folder_id, level) 

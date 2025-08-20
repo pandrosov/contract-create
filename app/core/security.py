@@ -25,9 +25,19 @@ def generate_csrf_token():
 
 # Получение JWT из cookie и проверка пользователя
 def get_current_user(request: Request):
-    token = request.cookies.get(JWT_COOKIE_NAME)
+    # Сначала пробуем получить токен из заголовка Authorization
+    auth_header = request.headers.get("Authorization")
+    token = None
+    
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    else:
+        # Если нет в заголовке, пробуем из cookies
+        token = request.cookies.get(JWT_COOKIE_NAME)
+    
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Нет токена авторизации")
+    
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         username: str = payload.get("sub")
@@ -35,9 +45,11 @@ def get_current_user(request: Request):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Некорректный токен")
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Некорректный токен")
+    
     db = SessionLocal()
     user = db.query(User).filter(User.username == username).first()
     db.close()
+    
     if user is None or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Пользователь не найден или не активирован")
     return user

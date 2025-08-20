@@ -13,6 +13,10 @@ class TemplateService:
         self.db = db
         self.templates_dir = settings.TEMPLATES_DIR
 
+    def _get_template_file_path(self, template: Template) -> str:
+        """Получает путь к файлу шаблона"""
+        return os.path.join(self.templates_dir, template.filename)
+
     def upload_template(self, file, folder_id: int, user_id: int) -> Template:
         """Загружает шаблон в указанную папку"""
         # Создаем папку для шаблонов, если её нет
@@ -28,9 +32,8 @@ class TemplateService:
         # Создаем запись в БД
         template = Template(
             filename=filename,
-            file_path=file_path,
             folder_id=folder_id,
-            user_id=user_id
+            uploaded_by=user_id
         )
         
         self.db.add(template)
@@ -54,8 +57,9 @@ class TemplateService:
             return False
         
         # Удаляем файл
-        if os.path.exists(template.file_path):
-            os.remove(template.file_path)
+        file_path = self._get_template_file_path(template)
+        if os.path.exists(file_path):
+            os.remove(file_path)
         
         # Удаляем запись из БД
         self.db.delete(template)
@@ -71,17 +75,18 @@ class TemplateService:
             return []
         
         print(f"Извлекаем плейсхолдеры из шаблона: {template.filename}")
-        print(f"Путь к файлу: {template.file_path}")
+        file_path = self._get_template_file_path(template)
+        print(f"Путь к файлу: {file_path}")
         
         # Проверяем существование файла
-        if not os.path.exists(template.file_path):
-            print(f"Файл не существует: {template.file_path}")
+        if not os.path.exists(file_path):
+            print(f"Файл не существует: {file_path}")
             return []
         
         try:
             # Используем python-docx напрямую для извлечения плейсхолдеров
             from docx import Document
-            doc = Document(template.file_path)
+            doc = Document(file_path)
             
             # Получаем все плейсхолдеры из шаблона
             placeholders = []
@@ -140,7 +145,7 @@ class TemplateService:
         
         try:
             # Загружаем шаблон с помощью docxtpl
-            doc = DocxTemplate(template.file_path)
+            doc = DocxTemplate(self._get_template_file_path(template))
             
             print(f"Генерируем документ с контекстом: {values}")
             

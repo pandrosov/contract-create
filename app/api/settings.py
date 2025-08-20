@@ -6,8 +6,18 @@ from app.services.settings_service import SettingsService
 from app.api.auth import get_current_user
 from app.models.user import User
 from pydantic import BaseModel
+import datetime
 
 router = APIRouter(prefix="/settings", tags=["settings"])
+
+def format_datetime(dt):
+    """Форматирует дату в читаемый формат для фронтенда"""
+    if dt is None:
+        return None
+    if isinstance(dt, str):
+        return dt
+    # Форматируем в формат ДД.ММ.ГГГГ ЧЧ:ММ
+    return dt.strftime("%d.%m.%Y %H:%M")
 
 class SettingCreate(BaseModel):
     key: str
@@ -45,8 +55,8 @@ async def get_settings(
                 "key": setting.key,
                 "value": setting.value,
                 "description": setting.description,
-                "created_at": setting.created_at.isoformat(),
-                "updated_at": setting.updated_at.isoformat() if setting.updated_at else None
+                "created_at": format_datetime(setting.created_at),
+                "updated_at": format_datetime(setting.updated_at)
             }
             for setting in settings
         ]
@@ -89,7 +99,7 @@ async def create_setting(
         "key": new_setting.key,
         "value": new_setting.value,
         "description": new_setting.description,
-        "created_at": new_setting.created_at.isoformat()
+        "created_at": format_datetime(new_setting.created_at)
     }
 
 @router.put("/{key}")
@@ -115,7 +125,7 @@ async def update_setting(
         "key": updated_setting.key,
         "value": updated_setting.value,
         "description": updated_setting.description,
-        "updated_at": updated_setting.updated_at.isoformat() if updated_setting.updated_at else None
+        "updated_at": format_datetime(updated_setting.updated_at)
     }
 
 @router.delete("/{key}")

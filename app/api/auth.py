@@ -8,8 +8,18 @@ from app.core.security import verify_password, create_access_token, get_current_
 from app.core.security import check_csrf
 from app.models.user import User
 from pydantic import BaseModel
+from fastapi.responses import JSONResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+def format_datetime(dt):
+    """Форматирует дату в читаемый формат для фронтенда"""
+    if dt is None:
+        return None
+    if isinstance(dt, str):
+        return dt
+    # Форматируем в формат ДД.ММ.ГГГГ ЧЧ:ММ
+    return dt.strftime("%d.%m.%Y %H:%M")
 
 class ActivateUserRequest(BaseModel):
     user_id: int
@@ -36,7 +46,6 @@ def login(request_data: LoginRequest, db: Session = Depends(get_db)):
     csrf_token = generate_csrf_token()
     
     # Создаем ответ с cookies
-    from fastapi.responses import JSONResponse
     response = JSONResponse(content={
         "access_token": access_token,
         "token_type": "bearer",
@@ -46,7 +55,7 @@ def login(request_data: LoginRequest, db: Session = Depends(get_db)):
             "email": user.email,
             "is_active": user.is_active,
             "is_admin": user.is_admin,
-            "date_joined": user.date_joined.isoformat() if user.date_joined else None
+            "date_joined": format_datetime(user.date_joined)
         }
     })
     
