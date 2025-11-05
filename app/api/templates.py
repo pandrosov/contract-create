@@ -57,7 +57,7 @@ async def upload_template(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка загрузки шаблона: {str(e)}")
 
-@router.get("/")
+@router.get("/", response_model=None)
 async def get_templates(db: Session = Depends(get_db)):
     """Получает все шаблоны"""
     template_service = TemplateService(db)
@@ -77,7 +77,7 @@ async def get_templates(db: Session = Depends(get_db)):
     }
     return JSONResponse(content=result)
 
-@router.get("/folder/{folder_id}")
+@router.get("/folder/{folder_id}", response_model=None)
 async def get_templates_by_folder(folder_id: int, db: Session = Depends(get_db)):
     """Получает шаблоны в папке"""
     template_service = TemplateService(db)
