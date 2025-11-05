@@ -12,4 +12,6 @@ class FolderOut(FolderBase):
     id: int
     path: str
     created_by: int
-    model_config = {"from_attributes": True} 
+    
+    class Config:
+        orm_mode = True 

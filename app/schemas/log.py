@@ -15,4 +15,6 @@ class LogCreate(LogBase):
 class LogOut(LogBase):
     id: int
     timestamp: datetime
-    model_config = {"from_attributes": True} 
+    
+    class Config:
+        orm_mode = True 
