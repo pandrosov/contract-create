@@ -52,30 +52,55 @@ http {
         root /usr/share/nginx/html;
         index index.html;
         
+        # Upstream for backend
+        upstream backend {
+            server backend:8000;
+        }
+        
+        # Upstream for frontend
+        upstream frontend {
+            server frontend:80;
+        }
+        
+        # API routes
         location /api/ {
-            proxy_pass http://backend:8000/;
+            proxy_pass http://backend/;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
         
+        # Health check endpoint
         location /health {
-            proxy_pass http://backend:8000/health;
+            proxy_pass http://backend/health;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
         
+        # Frontend static files
         location / {
-            try_files $uri $uri/ /index.html;
+            proxy_pass http://frontend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
         }
     }
 }
 EOF
     
     echo "✅ Временная конфигурация без SSL создана"
+fi
+
+# Проверяем конфигурацию nginx перед запуском
+echo "🔍 Проверяем конфигурацию nginx..."
+nginx -t
+if [ $? -ne 0 ]; then
+    echo "❌ Ошибка в конфигурации nginx!"
+    exit 1
 fi
 
 echo "🚀 Запускаем Nginx..."
