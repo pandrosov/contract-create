@@ -159,6 +159,7 @@ class TemplateService:
                 # Проверяем и исправляем каждый параграф
                 for paragraph in template_doc.paragraphs:
                     text = paragraph.text
+                    original_text = text
                     # Ищем незакрытые плейсхолдеры вида {{переменная} (без второй закрывающей скобки)
                     # Паттерн: {{ что-то } но не }}
                     matches = list(re.finditer(r'\{\{([^}]+)\}(?!\})', text))
@@ -172,7 +173,7 @@ class TemplateService:
                             fixed = True
                             print(f"Исправлен незакрытый плейсхолдер: {old_text} -> {new_text}")
                     
-                    if fixed and text != paragraph.text:
+                    if fixed and text != original_text:
                         paragraph.text = text
                 
                 # Также проверяем таблицы
@@ -181,6 +182,7 @@ class TemplateService:
                         for cell in row.cells:
                             for paragraph in cell.paragraphs:
                                 text = paragraph.text
+                                original_text = text
                                 matches = list(re.finditer(r'\{\{([^}]+)\}(?!\})', text))
                                 if matches:
                                     for match in reversed(matches):
@@ -190,7 +192,7 @@ class TemplateService:
                                         text = text[:match.start()] + new_text + text[match.end():]
                                         fixed = True
                                         print(f"Исправлен незакрытый плейсхолдер в таблице: {old_text} -> {new_text}")
-                                    if text != paragraph.text:
+                                    if text != original_text:
                                         paragraph.text = text
                 
                 # Если были исправления, сохраняем временную копию
