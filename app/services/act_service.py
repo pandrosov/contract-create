@@ -50,12 +50,8 @@ class ActService:
         # Для остальных типов используем строковое представление
         result = str(value)
         
-        # Экранируем фигурные скобки для Jinja2 (заменяем { на {{ и } на }})
-        # Но избегаем двойного экранирования
-        if '{' in result or '}' in result:
-            result = result.replace('{', '{{').replace('}', '}}')
-            # Если значение уже было экранировано, исправляем
-            result = result.replace('{{{{', '{{').replace('}}}}', '}}')
+        # НЕ экранируем фигурные скобки - docxtpl сам обрабатывает их
+        # docxtpl автоматически экранирует значения при рендеринге, чтобы избежать конфликтов с синтаксисом Jinja2
         
         return result
 
@@ -258,13 +254,9 @@ class ActService:
                                 values[placeholder] = self.format_value(value)
                                 print(f"Обычное значение для {placeholder}: {value} -> {values[placeholder]}")
                         else:
-                            # Это свободный ввод - используем значение как есть, но экранируем фигурные скобки
-                            value_str = str(column_or_value)
-                            # Экранируем фигурные скобки для Jinja2
-                            if '{' in value_str or '}' in value_str:
-                                value_str = value_str.replace('{', '{{').replace('}', '}}')
-                                value_str = value_str.replace('{{{{', '{{').replace('}}}}', '}}')
-                            values[placeholder] = value_str
+                            # Это свободный ввод - используем значение как есть
+                            # docxtpl автоматически экранирует значения при рендеринге
+                            values[placeholder] = str(column_or_value)
                             print(f"Свободный ввод для {placeholder}: {column_or_value}")
                     
                     print(f"Подготовленные значения: {values}")

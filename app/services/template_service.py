@@ -144,33 +144,35 @@ class TemplateService:
             raise ValueError("Шаблон не найден")
         
         try:
-            # Экранируем фигурные скобки в значениях для Jinja2
-            escaped_values = {}
-            for key, value in values.items():
-                if isinstance(value, str):
-                    # Экранируем фигурные скобки, но избегаем двойного экранирования
-                    escaped_value = value.replace('{', '{{').replace('}', '}}')
-                    escaped_value = escaped_value.replace('{{{{', '{{').replace('}}}}', '}}')
-                    escaped_values[key] = escaped_value
-                else:
-                    escaped_values[key] = value
+        try:
+            # НЕ экранируем фигурные скобки в значениях - docxtpl сам обрабатывает их
+            # Экранирование может вызвать проблемы, если в шаблоне есть сложный синтаксис Jinja2
+            # Вместо этого docxtpl автоматически экранирует значения при рендеринге
             
             # Загружаем шаблон с помощью docxtpl
             doc = DocxTemplate(self._get_template_file_path(template))
             
-            print(f"Генерируем документ с контекстом: {escaped_values}")
+            print(f"Генерируем документ с контекстом: {values}")
             
             # Рендерим шаблон с обработкой ошибок Jinja2
             try:
-                doc.render(escaped_values)
+                doc.render(values)
             except Exception as render_error:
                 error_msg = str(render_error)
                 print(f"Ошибка рендеринга шаблона: {error_msg}")
+                import traceback
+                print(f"Traceback: {traceback.format_exc()}")
+                
                 # Проверяем, есть ли проблемные значения
-                for key, value in escaped_values.items():
+                for key, value in values.items():
                     if isinstance(value, str) and ('{' in value or '}' in value):
                         print(f"Предупреждение: значение '{key}' содержит фигурные скобки: {value}")
-                raise ValueError(f"Ошибка рендеринга шаблона: {error_msg}")
+                
+                # Если ошибка связана с синтаксисом шаблона, даем более понятное сообщение
+                if "unexpected" in error_msg.lower() or "syntax" in error_msg.lower():
+                    raise ValueError(f"Ошибка синтаксиса в шаблоне: {error_msg}. Проверьте шаблон на наличие некорректного синтаксиса Jinja2.")
+                else:
+                    raise ValueError(f"Ошибка рендеринга шаблона: {error_msg}")
             
             # Создаем папку для сгенерированных файлов
             output_dir = os.path.join(self.templates_dir, 'generated')
