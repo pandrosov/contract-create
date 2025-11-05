@@ -143,12 +143,6 @@ class TemplateService:
         if not template:
             raise ValueError("Шаблон не найден")
         
-    def generate_document(self, template_id: int, values: Dict[str, Any], output_format: str = 'docx') -> str:
-        """Генерирует документ с заменой плейсхолдеров используя docxtpl"""
-        template = self.get_template_by_id(template_id)
-        if not template:
-            raise ValueError("Шаблон не найден")
-        
         try:
             from docxtpl import DocxTemplate
             from jinja2 import Environment, BaseLoader
@@ -306,4 +300,4 @@ class TemplateService:
 
     def get_templates_by_user(self, user_id: int) -> List[Template]:
         """Получает шаблоны пользователя"""
-        return self.db.query(Template).filter(Template.user_id == user_id).all() 
+        return self.db.query(Template).filter(Template.uploaded_by == user_id).all()
