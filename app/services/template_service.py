@@ -195,10 +195,15 @@ class TemplateService:
                 
                 # Если были исправления, сохраняем временную копию
                 if fixed:
-                    temp_path = tempfile.mktemp(suffix='.docx')
+                    temp_file = tempfile.NamedTemporaryFile(mode='wb', suffix='.docx', delete=False)
+                    temp_path = temp_file.name
+                    temp_file.close()
                     template_doc.save(temp_path)
                     print(f"Шаблон исправлен и сохранен во временный файл: {temp_path}")
                     template_path = temp_path
+                    # Удалим временный файл после использования
+                    import atexit
+                    atexit.register(lambda: os.remove(temp_path) if os.path.exists(temp_path) else None)
             except Exception as e:
                 print(f"Не удалось проверить/исправить шаблон: {e}, используем оригинальный файл")
             
@@ -266,6 +271,14 @@ class TemplateService:
             doc.save(output_path)
             
             print(f"Документ успешно сгенерирован: {output_path}")
+            
+            # Удаляем временный файл, если он был создан
+            if template_path != self._get_template_file_path(template) and os.path.exists(template_path):
+                try:
+                    os.remove(template_path)
+                    print(f"Временный файл удален: {template_path}")
+                except Exception as e:
+                    print(f"Не удалось удалить временный файл: {e}")
             
             # Конвертируем в PDF, если нужно
             if output_format == 'pdf':
