@@ -143,13 +143,27 @@ class TemplateService:
         if not template:
             raise ValueError("Шаблон не найден")
         
+    def generate_document(self, template_id: int, values: Dict[str, Any], output_format: str = 'docx') -> str:
+        """Генерирует документ с заменой плейсхолдеров используя docxtpl"""
+        template = self.get_template_by_id(template_id)
+        if not template:
+            raise ValueError("Шаблон не найден")
+        
         try:
-            # НЕ экранируем фигурные скобки в значениях - docxtpl сам обрабатывает их
-            # Экранирование может вызвать проблемы, если в шаблоне есть сложный синтаксис Jinja2
-            # Вместо этого docxtpl автоматически экранирует значения при рендеринге
+            from docxtpl import DocxTemplate
+            from jinja2 import Environment, BaseLoader
             
-            # Загружаем шаблон с помощью docxtpl
-            doc = DocxTemplate(self._get_template_file_path(template))
+            # Создаем кастомный Jinja2 environment с более гибкими настройками
+            jinja_env = Environment(
+                loader=BaseLoader(),
+                autoescape=False,  # Отключаем автоэкранирование для docx
+                trim_blocks=True,
+                lstrip_blocks=True,
+                keep_trailing_newline=True
+            )
+            
+            # Загружаем шаблон с помощью docxtpl и передаем кастомный environment
+            doc = DocxTemplate(self._get_template_file_path(template), jinja_env=jinja_env)
             
             print(f"Генерируем документ с контекстом: {values}")
             
@@ -169,7 +183,7 @@ class TemplateService:
                 
                 # Если ошибка связана с синтаксисом шаблона, даем более понятное сообщение
                 if "unexpected" in error_msg.lower() or "syntax" in error_msg.lower():
-                    raise ValueError(f"Ошибка синтаксиса в шаблоне: {error_msg}. Проверьте шаблон на наличие некорректного синтаксиса Jinja2.")
+                    raise ValueError(f"Ошибка синтаксиса в шаблоне '{template.filename}': {error_msg}. Проверьте шаблон на наличие некорректного синтаксиса Jinja2. Убедитесь, что все плейсхолдеры имеют формат {{переменная}} и правильно закрыты.")
                 else:
                     raise ValueError(f"Ошибка рендеринга шаблона: {error_msg}")
             
