@@ -3,8 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth, folders, templates, users, permissions, logs, acts, settings
 
 # Импортируем все модели для правильной инициализации relationships
-from app.models import user, folder, template, permission, action_log, placeholder_description
-from app.models import settings as settings_model
+from app.models import User, Folder, Template, Permission, ActionLog, PlaceholderDescription, Settings
 
 app = FastAPI(
     title="Contract Management API",
