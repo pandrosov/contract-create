@@ -12,4 +12,6 @@ class UserOut(UserBase):
     id: int
     is_active: bool
     is_admin: bool
-    model_config = {"from_attributes": True} 
+    
+    class Config:
+        orm_mode = True 
