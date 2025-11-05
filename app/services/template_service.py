@@ -144,19 +144,30 @@ class TemplateService:
             raise ValueError("Шаблон не найден")
         
         try:
+            # Экранируем фигурные скобки в значениях для Jinja2
+            escaped_values = {}
+            for key, value in values.items():
+                if isinstance(value, str):
+                    # Экранируем фигурные скобки, но избегаем двойного экранирования
+                    escaped_value = value.replace('{', '{{').replace('}', '}}')
+                    escaped_value = escaped_value.replace('{{{{', '{{').replace('}}}}', '}}')
+                    escaped_values[key] = escaped_value
+                else:
+                    escaped_values[key] = value
+            
             # Загружаем шаблон с помощью docxtpl
             doc = DocxTemplate(self._get_template_file_path(template))
             
-            print(f"Генерируем документ с контекстом: {values}")
+            print(f"Генерируем документ с контекстом: {escaped_values}")
             
             # Рендерим шаблон с обработкой ошибок Jinja2
             try:
-                doc.render(values)
+                doc.render(escaped_values)
             except Exception as render_error:
                 error_msg = str(render_error)
                 print(f"Ошибка рендеринга шаблона: {error_msg}")
                 # Проверяем, есть ли проблемные значения
-                for key, value in values.items():
+                for key, value in escaped_values.items():
                     if isinstance(value, str) and ('{' in value or '}' in value):
                         print(f"Предупреждение: значение '{key}' содержит фигурные скобки: {value}")
                 raise ValueError(f"Ошибка рендеринга шаблона: {error_msg}")
