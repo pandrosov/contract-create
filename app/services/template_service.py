@@ -149,8 +149,17 @@ class TemplateService:
             
             print(f"Генерируем документ с контекстом: {values}")
             
-            # Рендерим шаблон
-            doc.render(values)
+            # Рендерим шаблон с обработкой ошибок Jinja2
+            try:
+                doc.render(values)
+            except Exception as render_error:
+                error_msg = str(render_error)
+                print(f"Ошибка рендеринга шаблона: {error_msg}")
+                # Проверяем, есть ли проблемные значения
+                for key, value in values.items():
+                    if isinstance(value, str) and ('{' in value or '}' in value):
+                        print(f"Предупреждение: значение '{key}' содержит фигурные скобки: {value}")
+                raise ValueError(f"Ошибка рендеринга шаблона: {error_msg}")
             
             # Создаем папку для сгенерированных файлов
             output_dir = os.path.join(self.templates_dir, 'generated')
@@ -173,8 +182,13 @@ class TemplateService:
             
             return output_path
             
+        except ValueError as ve:
+            # Пробрасываем ValueError как есть
+            raise ve
         except Exception as e:
             print(f"Ошибка генерации документа: {e}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
             raise ValueError(f"Ошибка генерации документа: {str(e)}")
 
     def _replace_placeholders_in_paragraph(self, paragraph, values):
