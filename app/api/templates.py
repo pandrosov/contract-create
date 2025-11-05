@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 from typing import List
 import os
@@ -63,7 +63,7 @@ async def get_templates(db: Session = Depends(get_db)):
     template_service = TemplateService(db)
     templates = template_service.get_all_templates()
     
-    return {
+    result = {
         "data": [
             {
                 "id": template.id,
@@ -75,6 +75,7 @@ async def get_templates(db: Session = Depends(get_db)):
             for template in templates
         ]
     }
+    return JSONResponse(content=result)
 
 @router.get("/folder/{folder_id}")
 async def get_templates_by_folder(folder_id: int, db: Session = Depends(get_db)):
@@ -82,7 +83,7 @@ async def get_templates_by_folder(folder_id: int, db: Session = Depends(get_db))
     template_service = TemplateService(db)
     templates = template_service.get_templates_by_folder(folder_id)
     
-    return {
+    result = {
         "data": [
             {
                 "id": template.id,
@@ -94,6 +95,7 @@ async def get_templates_by_folder(folder_id: int, db: Session = Depends(get_db))
             for template in templates
         ]
     }
+    return JSONResponse(content=result)
 
 @router.delete("/{template_id}")
 async def delete_template(

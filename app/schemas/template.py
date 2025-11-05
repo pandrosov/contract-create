@@ -1,21 +1,18 @@
-from pydantic import BaseModel, field_serializer
+from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 
 class TemplateBase(BaseModel):
     filename: str
-    folder_id: int
+    folder_id: Optional[int] = None
 
 class TemplateCreate(TemplateBase):
     pass
 
 class TemplateOut(TemplateBase):
     id: int
-    uploaded_by: int
-    uploaded_at: datetime
+    uploaded_by: Optional[int] = None
+    uploaded_at: Optional[str] = None
     
-    @field_serializer('uploaded_at')
-    def serialize_uploaded_at(self, value: datetime) -> str:
-        return value.isoformat() if value else None
-    
-    model_config = {"from_attributes": True} 
+    class Config:
+        orm_mode = True 
