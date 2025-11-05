@@ -214,15 +214,17 @@ async def generate_acts(
         
         # Получаем фильтры из параметров функции
         filters = []
-        for i in range(5):  # Поддерживаем до 5 фильтров
-            column_param = f'filter_column_{i}'
-            value_param = f'filter_value_{i}'
-            
-            column = locals().get(column_param)
-            value = locals().get(value_param)
-            
+        filter_params = [
+            (filter_column_0, filter_value_0),
+            (filter_column_1, filter_value_1),
+            (filter_column_2, filter_value_2),
+            (filter_column_3, filter_value_3),
+            (filter_column_4, filter_value_4),
+        ]
+        
+        for column, value in filter_params:
             if column and value:
-                print(f"Найден фильтр {i}: column={column}, value={value}")
+                print(f"Найден фильтр: column={column}, value={value}")
                 filters.append({'column': column, 'value': value})
         
         print(f"Итоговые фильтры: {filters}")
