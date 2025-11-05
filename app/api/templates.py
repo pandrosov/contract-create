@@ -119,6 +119,30 @@ async def delete_template(
     
     return {"message": "Шаблон успешно удален"}
 
+@router.get("/{template_id}/download")
+async def download_template(
+    template_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Скачивает шаблон"""
+    template_service = TemplateService(db)
+    template = template_service.get_template_by_id(template_id)
+    
+    if not template:
+        raise HTTPException(status_code=404, detail="Шаблон не найден")
+    
+    file_path = template_service._get_template_file_path(template)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Файл шаблона не найден")
+    
+    return FileResponse(
+        path=file_path,
+        filename=template.filename,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+
 @router.get("/{template_id}/fields")
 async def get_template_fields(template_id: int, db: Session = Depends(get_db)):
     """Извлекает поля из шаблона"""
