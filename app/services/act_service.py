@@ -48,7 +48,16 @@ class ActService:
                 return value.strftime("%d.%m.%Y %H:%M")
         
         # Для остальных типов используем строковое представление
-        return str(value)
+        result = str(value)
+        
+        # Экранируем фигурные скобки для Jinja2 (заменяем { на {{ и } на }})
+        # Но избегаем двойного экранирования
+        if '{' in result or '}' in result:
+            result = result.replace('{', '{{').replace('}', '}}')
+            # Если значение уже было экранировано, исправляем
+            result = result.replace('{{{{', '{{').replace('}}}}', '}}')
+        
+        return result
 
     def analyze_excel_file(self, file) -> Dict[str, Any]:
         """Анализирует Excel файл и возвращает информацию о структуре"""
@@ -249,8 +258,13 @@ class ActService:
                                 values[placeholder] = self.format_value(value)
                                 print(f"Обычное значение для {placeholder}: {value} -> {values[placeholder]}")
                         else:
-                            # Это свободный ввод - используем значение как есть
-                            values[placeholder] = str(column_or_value)
+                            # Это свободный ввод - используем значение как есть, но экранируем фигурные скобки
+                            value_str = str(column_or_value)
+                            # Экранируем фигурные скобки для Jinja2
+                            if '{' in value_str or '}' in value_str:
+                                value_str = value_str.replace('{', '{{').replace('}', '}}')
+                                value_str = value_str.replace('{{{{', '{{').replace('}}}}', '}}')
+                            values[placeholder] = value_str
                             print(f"Свободный ввод для {placeholder}: {column_or_value}")
                     
                     print(f"Подготовленные значения: {values}")
