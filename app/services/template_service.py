@@ -146,6 +146,61 @@ class TemplateService:
         try:
             from docxtpl import DocxTemplate
             from jinja2 import Environment, BaseLoader
+            import tempfile
+            import re
+            
+            # Сначала проверяем и исправляем незакрытые плейсхолдеры в шаблоне
+            template_path = self._get_template_file_path(template)
+            try:
+                from docx import Document
+                template_doc = Document(template_path)
+                fixed = False
+                
+                # Проверяем и исправляем каждый параграф
+                for paragraph in template_doc.paragraphs:
+                    text = paragraph.text
+                    # Ищем незакрытые плейсхолдеры вида {{переменная} (без второй закрывающей скобки)
+                    # Паттерн: {{ что-то } но не }}
+                    matches = list(re.finditer(r'\{\{([^}]+)\}(?!\})', text))
+                    if matches:
+                        # Исправляем с конца, чтобы индексы не сбивались
+                        for match in reversed(matches):
+                            placeholder_name = match.group(1).strip()
+                            old_text = match.group(0)
+                            new_text = f"{{{{{placeholder_name}}}}}"
+                            text = text[:match.start()] + new_text + text[match.end():]
+                            fixed = True
+                            print(f"Исправлен незакрытый плейсхолдер: {old_text} -> {new_text}")
+                    
+                    if fixed and text != paragraph.text:
+                        paragraph.text = text
+                
+                # Также проверяем таблицы
+                for table in template_doc.tables:
+                    for row in table.rows:
+                        for cell in row.cells:
+                            for paragraph in cell.paragraphs:
+                                text = paragraph.text
+                                matches = list(re.finditer(r'\{\{([^}]+)\}(?!\})', text))
+                                if matches:
+                                    for match in reversed(matches):
+                                        placeholder_name = match.group(1).strip()
+                                        old_text = match.group(0)
+                                        new_text = f"{{{{{placeholder_name}}}}}"
+                                        text = text[:match.start()] + new_text + text[match.end():]
+                                        fixed = True
+                                        print(f"Исправлен незакрытый плейсхолдер в таблице: {old_text} -> {new_text}")
+                                    if text != paragraph.text:
+                                        paragraph.text = text
+                
+                # Если были исправления, сохраняем временную копию
+                if fixed:
+                    temp_path = tempfile.mktemp(suffix='.docx')
+                    template_doc.save(temp_path)
+                    print(f"Шаблон исправлен и сохранен во временный файл: {temp_path}")
+                    template_path = temp_path
+            except Exception as e:
+                print(f"Не удалось проверить/исправить шаблон: {e}, используем оригинальный файл")
             
             # Создаем кастомный Jinja2 environment с более гибкими настройками
             jinja_env = Environment(
@@ -157,7 +212,7 @@ class TemplateService:
             )
             
             # Загружаем шаблон с помощью docxtpl и передаем кастомный environment
-            doc = DocxTemplate(self._get_template_file_path(template), jinja_env=jinja_env)
+            doc = DocxTemplate(template_path, jinja_env=jinja_env)
             
             print(f"Генерируем документ с контекстом: {values}")
             
@@ -169,6 +224,23 @@ class TemplateService:
                 print(f"Ошибка рендеринга шаблона: {error_msg}")
                 import traceback
                 print(f"Traceback: {traceback.format_exc()}")
+                
+                # Проверяем шаблон на наличие проблемных мест
+                try:
+                    from docx import Document
+                    template_doc = Document(self._get_template_file_path(template))
+                    problematic_lines = []
+                    for i, paragraph in enumerate(template_doc.paragraphs):
+                        open_braces = paragraph.text.count('{{')
+                        close_braces = paragraph.text.count('}}')
+                        if open_braces != close_braces:
+                            problematic_lines.append(f"Строка {i}: {paragraph.text[:100]}... ({{{{: {open_braces}, }}: {close_braces})")
+                    if problematic_lines:
+                        print("Проблемные места в шаблоне:")
+                        for line in problematic_lines[:5]:
+                            print(f"  {line}")
+                except Exception as e:
+                    print(f"Не удалось проверить шаблон: {e}")
                 
                 # Проверяем, есть ли проблемные значения
                 for key, value in values.items():
