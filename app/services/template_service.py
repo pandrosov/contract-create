@@ -145,7 +145,6 @@ class TemplateService:
         
         try:
             from docxtpl import DocxTemplate
-            from jinja2 import Environment, BaseLoader
             import tempfile
             import re
             
@@ -209,17 +208,10 @@ class TemplateService:
             except Exception as e:
                 print(f"Не удалось проверить/исправить шаблон: {e}, используем оригинальный файл")
             
-            # Создаем кастомный Jinja2 environment с более гибкими настройками
-            jinja_env = Environment(
-                loader=BaseLoader(),
-                autoescape=False,  # Отключаем автоэкранирование для docx
-                trim_blocks=True,
-                lstrip_blocks=True,
-                keep_trailing_newline=True
-            )
-            
-            # Загружаем шаблон с помощью docxtpl и передаем кастомный environment
-            doc = DocxTemplate(template_path, jinja_env=jinja_env)
+            # Загружаем шаблон с помощью docxtpl
+            # docxtpl не поддерживает передачу jinja_env в конструктор,
+            # поэтому используем стандартный DocxTemplate
+            doc = DocxTemplate(template_path)
             
             print(f"Генерируем документ с контекстом: {values}")
             
