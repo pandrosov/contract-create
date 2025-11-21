@@ -1,0 +1,82 @@
+#!/bin/bash
+#
+# Скрипт для автоматического обновления SSL сертификатов Let's Encrypt
+# и их копирования в Nginx контейнер
+#
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="/opt/contract-app"
+DOMAIN="contract.alnilam.by"
+NGINX_CONTAINER="contract-nginx"
+
+echo "🔐 Начало обновления SSL сертификатов для ${DOMAIN}..."
+
+# Переходим в директорию проекта
+cd "${PROJECT_DIR}"
+
+# Обновляем сертификаты через certbot
+echo "📝 Проверяем и обновляем сертификаты через certbot..."
+certbot renew --quiet --no-random-sleep-on-renew
+
+# Проверяем, были ли обновлены сертификаты
+CERT_PATH="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
+if [ ! -f "${CERT_PATH}" ]; then
+    echo "❌ Сертификаты не найдены по пути ${CERT_PATH}"
+    exit 1
+fi
+
+# Проверяем, запущен ли контейнер Nginx
+if ! docker ps | grep -q "${NGINX_CONTAINER}"; then
+    echo "⚠️ Контейнер ${NGINX_CONTAINER} не запущен, пропускаем копирование"
+    exit 0
+fi
+
+# Копируем обновленные сертификаты в контейнер
+echo "📋 Копируем обновленные сертификаты в контейнер ${NGINX_CONTAINER}..."
+
+# Копируем fullchain.pem
+docker cp "${CERT_PATH}" "${NGINX_CONTAINER}:/etc/nginx/ssl/fullchain.pem"
+if [ $? -eq 0 ]; then
+    echo "✅ fullchain.pem скопирован"
+else
+    echo "❌ Ошибка копирования fullchain.pem"
+    exit 1
+fi
+
+# Копируем privkey.pem
+PRIVKEY_PATH="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
+docker cp "${PRIVKEY_PATH}" "${NGINX_CONTAINER}:/etc/nginx/ssl/privkey.pem"
+if [ $? -eq 0 ]; then
+    echo "✅ privkey.pem скопирован"
+else
+    echo "❌ Ошибка копирования privkey.pem"
+    exit 1
+fi
+
+# Устанавливаем правильные права в контейнере
+docker exec "${NGINX_CONTAINER}" chmod 644 /etc/nginx/ssl/fullchain.pem
+docker exec "${NGINX_CONTAINER}" chmod 600 /etc/nginx/ssl/privkey.pem
+
+# Проверяем конфигурацию nginx перед перезагрузкой
+echo "🔍 Проверяем конфигурацию nginx..."
+if docker exec "${NGINX_CONTAINER}" nginx -t; then
+    echo "✅ Конфигурация nginx корректна"
+else
+    echo "❌ Ошибка в конфигурации nginx!"
+    exit 1
+fi
+
+# Перезагружаем nginx для применения новых сертификатов
+echo "🔄 Перезагружаем nginx..."
+docker exec "${NGINX_CONTAINER}" nginx -s reload
+
+if [ $? -eq 0 ]; then
+    echo "✅ Nginx успешно перезагружен с новыми сертификатами"
+    echo "🎉 Обновление SSL сертификатов завершено успешно!"
+else
+    echo "❌ Ошибка при перезагрузке nginx"
+    exit 1
+fi
+
