@@ -5,19 +5,30 @@ echo "🚀 Инициализация Nginx контейнера..."
 # Ждем, пока хост-система будет готова
 sleep 5
 
+# Функция для копирования SSL сертификатов
+copy_ssl_certificates() {
+    if [ -f "/etc/letsencrypt/live/contract.alnilam.by/fullchain.pem" ]; then
+        echo "✅ SSL сертификаты найдены на хосте, копируем их..."
+        
+        # Копируем сертификаты
+        cp /etc/letsencrypt/live/contract.alnilam.by/fullchain.pem /etc/nginx/ssl/
+        cp /etc/letsencrypt/live/contract.alnilam.by/privkey.pem /etc/nginx/ssl/
+        
+        # Устанавливаем правильные права
+        chmod 644 /etc/nginx/ssl/fullchain.pem
+        chmod 600 /etc/nginx/ssl/privkey.pem
+        
+        echo "✅ SSL сертификаты скопированы и настроены"
+        return 0
+    else
+        return 1
+    fi
+}
+
 # Проверяем, есть ли SSL сертификаты на хосте
-if [ -f "/etc/letsencrypt/live/contract.alnilam.by/fullchain.pem" ]; then
-    echo "✅ SSL сертификаты найдены на хосте, копируем их..."
-    
-    # Копируем сертификаты
-    cp /etc/letsencrypt/live/contract.alnilam.by/fullchain.pem /etc/nginx/ssl/
-    cp /etc/letsencrypt/live/contract.alnilam.by/privkey.pem /etc/nginx/ssl/
-    
-    # Устанавливаем правильные права
-    chmod 644 /etc/nginx/ssl/fullchain.pem
-    chmod 600 /etc/nginx/ssl/privkey.pem
-    
-    echo "✅ SSL сертификаты скопированы и настроены"
+if copy_ssl_certificates; then
+    # Сертификаты скопированы, используем основную конфигурацию
+    echo "✅ Используем конфигурацию с SSL"
 else
     echo "⚠️ SSL сертификаты не найдены, запускаем без SSL..."
     
