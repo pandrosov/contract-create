@@ -67,22 +67,36 @@ fi
 # Копируем обновленные сертификаты в контейнер
 echo "📋 Копируем обновленные сертификаты в контейнер ${NGINX_CONTAINER}..."
 
-# Копируем fullchain.pem
-docker cp "${CERT_PATH}" "${NGINX_CONTAINER}:/etc/nginx/ssl/fullchain.pem"
-if [ $? -eq 0 ]; then
-    echo "✅ fullchain.pem скопирован"
+# Получаем реальные пути к файлам (разрешаем симлинки)
+REAL_CERT_PATH=$(readlink -f "${CERT_PATH}" 2>/dev/null || echo "${CERT_PATH}")
+PRIVKEY_PATH="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
+REAL_PRIVKEY_PATH=$(readlink -f "${PRIVKEY_PATH}" 2>/dev/null || echo "${PRIVKEY_PATH}")
+
+# Копируем fullchain.pem (используем реальный путь)
+if [ -f "${REAL_CERT_PATH}" ]; then
+    docker cp "${REAL_CERT_PATH}" "${NGINX_CONTAINER}:/etc/nginx/ssl/fullchain.pem"
+    if [ $? -eq 0 ]; then
+        echo "✅ fullchain.pem скопирован"
+    else
+        echo "❌ Ошибка копирования fullchain.pem"
+        exit 1
+    fi
 else
-    echo "❌ Ошибка копирования fullchain.pem"
+    echo "❌ Файл сертификата не найден: ${REAL_CERT_PATH}"
     exit 1
 fi
 
-# Копируем privkey.pem
-PRIVKEY_PATH="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
-docker cp "${PRIVKEY_PATH}" "${NGINX_CONTAINER}:/etc/nginx/ssl/privkey.pem"
-if [ $? -eq 0 ]; then
-    echo "✅ privkey.pem скопирован"
+# Копируем privkey.pem (используем реальный путь)
+if [ -f "${REAL_PRIVKEY_PATH}" ]; then
+    docker cp "${REAL_PRIVKEY_PATH}" "${NGINX_CONTAINER}:/etc/nginx/ssl/privkey.pem"
+    if [ $? -eq 0 ]; then
+        echo "✅ privkey.pem скопирован"
+    else
+        echo "❌ Ошибка копирования privkey.pem"
+        exit 1
+    fi
 else
-    echo "❌ Ошибка копирования privkey.pem"
+    echo "❌ Файл приватного ключа не найден: ${REAL_PRIVKEY_PATH}"
     exit 1
 fi
 
