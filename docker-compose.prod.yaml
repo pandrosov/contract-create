@@ -12,8 +12,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "5437:5432"
+    # Порт PostgreSQL не публикуем наружу - доступ только внутри Docker сети
+    # ports:
+    #   - "5437:5432"
     restart: unless-stopped
     networks:
       - contract-network
@@ -33,8 +34,9 @@ services:
     volumes:
       - ./templates:/app/templates
       - ./logs:/app/logs
-    ports:
-      - "8000:8000"
+    # Порт Backend не публикуем наружу - доступ только через Nginx
+    # ports:
+    #   - "8000:8000"
     depends_on:
       - postgres
     restart: unless-stopped

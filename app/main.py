@@ -19,10 +19,9 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",  # Разработка
         "https://contract.alnilam.by",  # Продакшен
         "https://www.contract.alnilam.by",  # Продакшен с www
-        "https://178.172.138.229",  # IP адрес
+        # Убрали IP адрес и localhost для безопасности
     ],
     allow_credentials=True,
     allow_methods=["*"],
