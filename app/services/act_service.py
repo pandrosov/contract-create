@@ -47,6 +47,17 @@ class ActService:
                 # Это дата со временем
                 return value.strftime("%d.%m.%Y %H:%M")
         
+        # Обработка чисел: убираем лишние нули после точки
+        if isinstance(value, (int, float)):
+            # Если это целое число (даже если оно float типа 123.0)
+            if isinstance(value, int) or (isinstance(value, float) and value.is_integer()):
+                return str(int(value))
+            else:
+                # Для чисел с десятичной частью убираем лишние нули
+                # Используем форматирование, чтобы убрать trailing zeros
+                formatted = f"{value:.10f}".rstrip('0').rstrip('.')
+                return formatted
+        
         # Для остальных типов используем строковое представление
         result = str(value)
         
