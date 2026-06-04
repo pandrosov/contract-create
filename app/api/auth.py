@@ -76,7 +76,7 @@ async def login(
         key=JWT_COOKIE_NAME,
         value=access_token,
         httponly=True,
-        secure=True,
+        secure=settings.COOKIE_SECURE,
         samesite="lax",
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
     )
@@ -84,7 +84,7 @@ async def login(
         key=CSRF_COOKIE_NAME,
         value=csrf_token,
         httponly=False,
-        secure=True,
+        secure=settings.COOKIE_SECURE,
         samesite="lax",
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
     )
@@ -162,7 +162,7 @@ async def get_csrf_token(response: Response):
         key=CSRF_COOKIE_NAME,
         value=csrf_token,
         httponly=False,
-        secure=True,
+        secure=settings.COOKIE_SECURE,
         samesite="lax",
         max_age=3600
     )
@@ -192,4 +192,5 @@ async def activate_user_endpoint(
         "message": f"Пользователь {user.username} успешно активирован",
         "user_id": user.id
     }
+
 

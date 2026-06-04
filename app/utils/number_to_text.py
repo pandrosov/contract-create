@@ -1,14 +1,32 @@
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+
+
+def split_money_amount(number):
+    """Возвращает рубли и копейки после денежного округления до 2 знаков."""
+    try:
+        amount = Decimal(str(number)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    except (InvalidOperation, ValueError):
+        return None
+
+    if amount < 0:
+        return None
+
+    rubles = int(amount)
+    kopecks = int((amount - Decimal(rubles)) * 100)
+    return amount, rubles, kopecks
+
+
 def number_to_text(number, currency="рублей"):
     """
     Преобразует число в текст на русском языке.
     Например: 5200 -> "пять тысяч двести"
     """
-    if not isinstance(number, (int, float)) or number < 0:
+    money_parts = split_money_amount(number)
+    if money_parts is None:
         return str(number)
     
     # Разделяем на рубли и копейки
-    rubles = int(number)
-    kopecks = int((number - rubles) * 100)
+    _, rubles, _ = money_parts
     
     def num_to_words(num):
         """Преобразует число в слова"""
@@ -171,19 +189,19 @@ def format_number_with_text(number, currency="белорусских рубля"
     Форматирует число с расшифровкой в скобках.
     Например: 1234.56 -> "1234,56 (Одна тысяча двести тридцать четыре белорусских рубля 56 копеек)"
     """
-    if not isinstance(number, (int, float)) or number < 0:
+    money_parts = split_money_amount(number)
+    if money_parts is None:
         return str(number)
     
     # Разделяем на рубли и копейки
-    rubles = int(number)
-    kopecks = int((number - rubles) * 100)
+    amount, rubles, kopecks = money_parts
     
     # Форматируем исходное число
     if isinstance(number, int):
         formatted_number = str(number)
     else:
         # Заменяем точку на запятую для русского формата
-        formatted_number = f"{number:.2f}".replace('.', ',')
+        formatted_number = f"{amount:.2f}".replace('.', ',')
     
     # Получаем текстовую расшифровку для рублей
     rubles_text = number_to_text(rubles, currency)

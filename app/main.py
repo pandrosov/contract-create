@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth, folders, templates, users, permissions, logs, acts, settings
+from app.core.config import settings as app_settings
 
 # Импортируем все модели для правильной инициализации relationships
 from app.models import User, Folder, Template, Permission, ActionLog, PlaceholderDescription, Settings
@@ -18,11 +19,7 @@ app = FastAPI(
 # Настройка CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://contract.alnilam.by",  # Продакшен
-        "https://www.contract.alnilam.by",  # Продакшен с www
-        # Убрали IP адрес и localhost для безопасности
-    ],
+    allow_origins=app_settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

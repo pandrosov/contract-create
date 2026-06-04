@@ -1,7 +1,7 @@
-version: '3.8'
 services:
   db:
     image: postgres:15
+    container_name: contract-db
     restart: always
     environment:
       POSTGRES_USER: contract_user
@@ -11,6 +11,11 @@ services:
       - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U contract_user -d contract_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   backend:
     build:
@@ -18,14 +23,23 @@ services:
       dockerfile: app/Dockerfile
     container_name: contract-backend
     environment:
-      DATABASE_URL: postgresql+psycopg2://contract_user:contract_pass@db:5432/contract_db
+      DATABASE_URL: postgresql://contract_user:contract_pass@db:5432/contract_db
+      SECRET_KEY: local-dev-secret-key
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 1440
+      CORS_ORIGINS: http://localhost:3131,http://127.0.0.1:3131
+      COOKIE_SECURE: "false"
+      TEMPLATES_DIR: templates
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "8000:8000"
     volumes:
       - .:/app
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    command: >
+      sh -c "python scripts/database/init_db.py &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
   frontend:
     build:
@@ -35,7 +49,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "3000:3000"
+      - "3131:3000"
     environment:
       - CHOKIDAR_USEPOLLING=true
       - REACT_APP_API_URL=http://localhost:8000

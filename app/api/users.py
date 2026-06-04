@@ -22,7 +22,7 @@ def get_user(user_id: int, db: Session = Depends(get_db), admin: User = Depends(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
-    return user
+    return user 
 
 @router.post("/make-admin")
 def make_user_admin(request: MakeAdminRequest, db: Session = Depends(get_db), admin: User = Depends(require_admin)):

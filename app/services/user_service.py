@@ -41,7 +41,7 @@ def activate_user(db: Session, user_id: int, is_active: bool):
     if user:
         user.is_active = is_active
         db.commit()
-    return user
+    return user 
 
 def make_admin(db: Session, user_id: int, is_admin: bool):
     """Назначает или снимает права администратора у пользователя"""
